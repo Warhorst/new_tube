@@ -1,0 +1,16 @@
+[package]
+name = "new_tube"
+version = "0.1.0"
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies.reqwest]
+version = "0.11.7"
+features = ["blocking"]
+
+[dependencies]
+error_gen = { git = "https://github.com/Warhorst/error_gen.git"}
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+chrono = "0.4.19"
