@@ -1,11 +1,12 @@
-use chrono::{DateTime, Local};
+use chrono::{Date, DateTime, Local, NaiveTime};
+use cli_table::row::{Row, ToRow};
 
 #[derive(Debug)]
 pub struct Video {
     pub channel_name: String,
     pub name: String,
     pub id: String,
-    pub release_date: DateTime<Local>,
+    pub release_date: Date<Local>,
 }
 
 impl Video {
@@ -19,8 +20,29 @@ impl Video {
     ) -> Self {
         Video {
             channel_name, name, id,
-            release_date: DateTime::parse_from_rfc3339(&release_date).unwrap().with_timezone(&Local)
+            release_date: DateTime::parse_from_rfc3339(&release_date).unwrap().with_timezone(&Local).date()
         }
+    }
+
+    /// Return if a video was released today
+    pub fn is_new(&self) -> bool {
+        let today_at_midnight = Local::today().and_time(NaiveTime::from_hms(0, 0, 0)).unwrap().date();
+        self.release_date > today_at_midnight
+    }
+
+    fn create_video_link(&self) -> String {
+        format!("https://www.youtube.com/watch?v={}", self.id)
+    }
+}
+
+impl ToRow<4> for Video {
+    fn to_table_row(&self) -> Row<4> {
+        Row::from([
+            self.channel_name.clone(),
+            self.name.clone(),
+            self.create_video_link(),
+            self.release_date.to_string()
+        ])
     }
 }
 
