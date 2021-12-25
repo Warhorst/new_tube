@@ -1,12 +1,12 @@
-use chrono::{Date, DateTime, Local, NaiveTime};
 use cli_table::row::{Row, ToRow};
+use crate::date::Date;
 
 #[derive(Debug)]
 pub struct Video {
     pub channel_name: String,
     pub name: String,
     pub id: String,
-    pub release_date: Date<Local>,
+    pub release_date: Date,
 }
 
 impl Video {
@@ -19,15 +19,15 @@ impl Video {
         release_date: String,
     ) -> Self {
         Video {
-            channel_name, name, id,
-            release_date: DateTime::parse_from_rfc3339(&release_date).unwrap().with_timezone(&Local).date()
+            channel_name,
+            name,
+            id,
+            release_date: Date::from_video_date(&release_date),
         }
     }
 
-    /// Return if a video was released today
-    pub fn is_new(&self) -> bool {
-        let today_at_midnight = Local::today().and_time(NaiveTime::from_hms(0, 0, 0)).unwrap().date();
-        self.release_date > today_at_midnight
+    pub fn is_new(&self, last_video_release: &String) -> bool {
+        Date::from_db_playlist_date(last_video_release) < self.release_date
     }
 
     fn create_video_link(&self) -> String {
@@ -39,10 +39,18 @@ impl ToRow<4> for Video {
     fn to_table_row(&self) -> Row<4> {
         Row::from([
             self.channel_name.clone(),
-            self.name.clone(),
+            shorten_video_name(self.name.clone()),
             self.create_video_link(),
-            self.release_date.to_string()
+            self.release_date.to_db_playlist_date()
         ])
+    }
+}
+
+/// Names can get to long to display in a table cell. Limit to max 45 letters.
+fn shorten_video_name(name: String) -> String {
+    match name.len() < 45 {
+        true => name,
+        false => format!("{}...", &name[0..42])
     }
 }
 
@@ -56,7 +64,7 @@ mod tests {
             "Channel".to_string(),
             "Video".to_string(),
             "69NICE420".to_string(),
-            "2021-12-19T19:13:00Z".to_string()
+            "2021-12-19T19:13:00Z".to_string(),
         );
     }
 }
