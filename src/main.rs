@@ -29,14 +29,24 @@ fn main() -> Result<(), NewTubeError> {
             Ok(())
         }
         ShowNewVideos =>  {
-            let mut new_videos = vec![];
+            let mut playlist_id_and_new_videos = vec![];
             for list in database.get_playlists()? {
-                new_videos.extend(api_caller.get_latest_videos(&list.id)?.into_iter().filter(move |v| v.is_new(&list.last_video_release)))
+                let list_id = &list.id;
+                let last_video_release = &list.last_video_release;
+
+                playlist_id_and_new_videos.extend(api_caller.get_latest_videos(&list.id)?
+                    .into_iter()
+                    .map(|v| (list_id.clone(), v))
+                    .filter(|(_, v)| v.is_new(last_video_release)))
+            }
+
+            for (playlist_id, video) in &playlist_id_and_new_videos {
+                database.update_playlist(playlist_id, video)?
             }
 
             Table::new()
                 .header(["Channel", "Video", "Link", "Release Date"])
-                .print_data(new_videos.iter());
+                .print_data(playlist_id_and_new_videos.iter().map(|(_, v)| v));
 
             Ok(())
         },

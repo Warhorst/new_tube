@@ -51,6 +51,14 @@ impl Database {
 
         Ok(())
     }
+
+    pub fn update_playlist(&self, id: &String, video: &Video) -> Result<(), DBError> {
+        self.connection.execute("\
+            UPDATE Playlists SET channel_name=?2, last_video_name=?3, last_video_id=?4, last_video_release=?5 WHERE id=?1;
+        ", &[&id, &video.channel_name, &video.name, &video.id, &video.release_date.to_db_playlist_date()])?;
+
+        Ok(())
+    }
 }
 
 pub struct Playlist {
