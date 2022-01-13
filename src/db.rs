@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 use std::path::PathBuf;
-use error_gen::error;
+use error_generator::error;
 use rusqlite::{Connection, Row};
 use crate::date::Date;
 use crate::video::Video;

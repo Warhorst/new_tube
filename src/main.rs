@@ -1,4 +1,4 @@
-use error_gen::error;
+use error_generator::error;
 use crate::db::{Database, Playlist};
 use clap::Parser;
 use cli_table::table::Table;
@@ -84,8 +84,8 @@ struct AddPlaylistCommand {
 enum NewTubeError {
     #[error(message = "The playlist for the given id has no videos.")]
     PlaylistHasNoVideos,
-    #[error(message = "Youtube API Call failed. Error: {0}", impl_from)]
+    #[error(message = "Youtube API Call failed. Error: {_0}", impl_from)]
     ApiCallFailed(crate::api::ApiCallerError),
-    #[error(message = "Database call failed. Error: {0}", impl_from)]
+    #[error(message = "Database call failed. Error: {_0}", impl_from)]
     DatabaseCallFailed(crate::db::DBError)
 }

@@ -15,7 +15,7 @@ features = ["bundled"]
 
 
 [dependencies]
-error_gen = { git = "https://github.com/Warhorst/error_gen.git"}
+error_generator = "1.2.1"
 cli_table = { git = "https://github.com/Warhorst/cli_table.git"}
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

@@ -1,4 +1,4 @@
-use error_gen::error;
+use error_generator::error;
 
 use ApiCallerError::*;
 use playlist_items::PlaylistItems;
@@ -59,10 +59,10 @@ impl APICaller {
 pub enum ApiCallerError {
     #[error(message = "The system variable 'YOUTUBE_API_KEY' is not set", impl_from)]
     APIKeyNotSet(std::env::VarError),
-    #[error(message = "Error while requesting the playlist items from youtube: {0}", impl_from)]
+    #[error(message = "Error while requesting the playlist items from youtube: {_0}", impl_from)]
     RequestFailed(reqwest::Error),
-    #[error(message = "The request returned code {0}. Response: {1}")]
+    #[error(message = "The request returned code {_0}. Response: {_1}")]
     ErrorResponse(u16, String),
-    #[error(message = "The response could not be parsed. Error: {0}", impl_from)]
+    #[error(message = "The response could not be parsed. Error: {_0}", impl_from)]
     ParsingFailed(serde_json::Error)
 }
