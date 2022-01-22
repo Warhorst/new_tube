@@ -7,7 +7,7 @@ use crate::video::Video;
 
 mod playlist_items;
 
-type PlaylistId = String;
+type PlaylistId<'a> = &'a str;
 
 pub struct APICaller {
     api_key: String,
@@ -24,7 +24,7 @@ impl APICaller {
 
     /// Return the latest youtube videos from the given playlist id. The videos are
     /// fetched using the youtube data API v3 PlaylistItems method.
-    pub fn get_latest_videos(&self, id: &PlaylistId) -> Result<Vec<Video>, ApiCallerError> {
+    pub fn get_latest_videos(&self, id: PlaylistId) -> Result<Vec<Video>, ApiCallerError> {
         let url = self.create_url(id);
         let playlist_items_json = self.get_playlist_items_as_json(url)?;
         let items_response: PlaylistItems = serde_json::from_str(&playlist_items_json)?;
@@ -32,7 +32,7 @@ impl APICaller {
     }
 
     /// Create the url to the playlist item api (see https://developers.google.com/youtube/v3/docs/playlistItems/list).
-    fn create_url(&self, id: &PlaylistId) -> String {
+    fn create_url(&self, id: PlaylistId) -> String {
         format!(
             "https://www.googleapis.com/youtube/v3/playlistItems?\
             part=snippet\

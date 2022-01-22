@@ -1,8 +1,11 @@
 use cli_table::row::{Row, ToRow};
+use serde::Serialize;
+
 use crate::date::Date;
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct Video {
+    pub playlist_id: String,
     pub channel_name: String,
     pub name: String,
     pub id: String,
@@ -13,12 +16,14 @@ impl Video {
     /// Create a Video from the given parameters. The release_date must be a valid
     /// RFC 3339 date string (see https://www.ietf.org/rfc/rfc3339.txt).
     pub fn new(
+        playlist_id: String,
         channel_name: String,
         name: String,
         id: String,
         release_date: String,
     ) -> Self {
         Video {
+            playlist_id,
             channel_name,
             name,
             id,
@@ -26,7 +31,7 @@ impl Video {
         }
     }
 
-    pub fn is_new(&self, last_video_release: &String) -> bool {
+    pub fn is_new(&self, last_video_release: &str) -> bool {
         Date::from_db_playlist_date(last_video_release) < self.release_date
     }
 
@@ -61,6 +66,7 @@ mod tests {
     #[test]
     fn create_video_works() {
         Video::new(
+            "PlaylistID".to_string(),
             "Channel".to_string(),
             "Video".to_string(),
             "69NICE420".to_string(),

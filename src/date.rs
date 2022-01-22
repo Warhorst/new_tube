@@ -1,8 +1,10 @@
 use std::cmp::Ordering;
+
 use chrono::{Datelike, DateTime, Timelike, TimeZone, Utc};
+use serde::Serialize;
 
 /// A simplified date to be used when comparing video releases
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub struct Date {
     year: usize,
     month: usize,
@@ -13,7 +15,7 @@ pub struct Date {
 }
 
 impl Date {
-    pub fn from_video_date(date_string: &String) -> Self {
+    pub fn from_video_date(date_string: &str) -> Self {
         let date_time = DateTime::parse_from_rfc3339(date_string).unwrap().with_timezone(&Utc);
         Date {
             year: date_time.year() as usize,
@@ -25,8 +27,8 @@ impl Date {
         }
     }
 
-    pub fn from_db_playlist_date(date_string: &String) -> Self {
-        let parts = date_string.split(":").map(|s| s.parse::<usize>().unwrap()).collect::<Vec<_>>();
+    pub fn from_db_playlist_date(date_string: &str) -> Self {
+        let parts = date_string.split(':').map(|s| s.parse::<usize>().unwrap()).collect::<Vec<_>>();
         Date {
             year: parts[0],
             month: parts[1],

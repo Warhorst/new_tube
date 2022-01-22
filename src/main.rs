@@ -1,10 +1,12 @@
-use error_generator::error;
-use crate::db::{Database, Playlist};
 use clap::Parser;
 use cli_table::table::Table;
+use error_generator::error;
+
 use Command::*;
-use crate::api::APICaller;
 use NewTubeError::*;
+
+use crate::api::APICaller;
+use crate::db::{Database, Playlist};
 use crate::video::Video;
 
 mod api;
@@ -13,65 +15,89 @@ mod db;
 mod date;
 
 fn main() -> Result<(), NewTubeError> {
-    let database = Database::open().unwrap();
-    let command = Command::parse();
-    let api_caller = APICaller::new().unwrap();
-
-    match command {
-        AddPlaylist(add_command) =>  {
-            let latest_videos = APICaller::new()?.get_latest_videos(&add_command.playlist_id)?;
-            let playlist = match latest_videos.first() {
-                Some(video) => Playlist::from((&add_command.playlist_id, video)),
-                None => return Err(PlaylistHasNoVideos)
-            };
-
-            database.add_playlist(playlist)?;
-            Ok(())
-        }
-        ShowNewVideos =>  {
-            let mut playlist_id_and_new_videos = vec![];
-            for list in database.get_playlists()? {
-                let list_id = &list.id;
-                let last_video_release = &list.last_video_release;
-
-                playlist_id_and_new_videos.extend(api_caller.get_latest_videos(&list.id)?
-                    .into_iter()
-                    .map(|v| (list_id.clone(), v))
-                    .filter(|(_, v)| v.is_new(last_video_release)))
-            }
-
-            for (playlist_id, video) in &playlist_id_and_new_videos {
-                database.update_playlist(playlist_id, video)?
-            }
-
-            Table::new()
-                .header(["Channel", "Video", "Link", "Release Date"])
-                .print_data(playlist_id_and_new_videos.iter().map(|(_, v)| v));
-
-            Ok(())
-        },
-        GetLastVideos => {
-            let videos: Vec<Video> = database.get_playlists()?
-                .into_iter()
-                .map(Playlist::into)
-                .collect();
-
-            Table::new()
-                .header(["Channel", "Video", "Link", "Release Date"])
-                .print_data(videos.iter());
-            Ok(())
-        }
+    match Command::parse() {
+        Add(add_command) => add(&add_command.playlist_id),
+        New => new(),
+        NewJson => new_json(),
+        Last => last(),
+        PlaylistsJSON => unimplemented!()
     }
+}
+
+fn add(id: &str) -> Result<(), NewTubeError> {
+    let database = Database::open()?;
+    let latest_videos = APICaller::new()?.get_latest_videos(id)?;
+    let playlist = match latest_videos.first() {
+        Some(video) => Playlist::from((id, video)),
+        None => return Err(PlaylistHasNoVideos)
+    };
+
+    database.add_playlist(playlist)?;
+    Ok(())
+}
+
+fn new() -> Result<(), NewTubeError> {
+    let new_videos = get_new_videos_and_update_database()?;
+
+    Table::new()
+        .header(["Channel", "Video", "Link", "Release Date"])
+        .print_data(new_videos.iter());
+
+    Ok(())
+}
+
+fn new_json() -> Result<(), NewTubeError> {
+    let new_videos = get_new_videos_and_update_database()?;
+    let new_videos_json = serde_json::to_string(&new_videos).unwrap();
+    println!("{new_videos_json}");
+    Ok(())
+}
+
+fn get_new_videos_and_update_database() -> Result<Vec<Video>, NewTubeError> {
+    let database = Database::open()?;
+    let api_caller = APICaller::new()?;
+    let mut new_videos = vec![];
+
+    for list in database.get_playlists()? {
+        let list_id = &list.id;
+        let last_video_release = &list.last_video_release;
+
+        new_videos.extend(api_caller.get_latest_videos(list_id)?.into_iter().filter(|v| v.is_new(last_video_release)))
+    }
+
+    for video in &new_videos {
+        database.update_playlist(video)?
+    }
+
+    Ok(new_videos)
+}
+
+fn last() -> Result<(), NewTubeError> {
+    let database = Database::open()?;
+    let videos: Vec<Video> = database.get_playlists()?
+        .into_iter()
+        .map(Playlist::into)
+        .collect();
+
+    Table::new()
+        .header(["Channel", "Video", "Link", "Release Date"])
+        .print_data(videos.iter());
+    Ok(())
 }
 
 #[derive(Parser)]
 enum Command {
     /// Add a playlist id
-    AddPlaylist(AddPlaylistCommand),
+    Add(AddPlaylistCommand),
     /// Show the new videos of today
-    ShowNewVideos,
+    New,
+    /// Get the new videos as JSON
+    #[clap(name = "new_json")]
+    NewJson,
     /// Show the last video of every playlist. This does not call the Youtube API
-    GetLastVideos
+    Last,
+    /// Return all saved playlist IDs as JSON
+    PlaylistsJSON,
 }
 
 #[derive(Parser)]
@@ -87,5 +113,5 @@ enum NewTubeError {
     #[error(message = "Youtube API Call failed. Error: {_0}", impl_from)]
     ApiCallFailed(crate::api::ApiCallerError),
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
-    DatabaseCallFailed(crate::db::DBError)
+    DatabaseCallFailed(crate::db::DBError),
 }
