@@ -1,3 +1,6 @@
+use std::fs::File;
+use std::path::PathBuf;
+
 use clap::Parser;
 use cli_table::table::Table;
 use error_generator::error;
@@ -12,15 +15,15 @@ use crate::video::Video;
 mod api;
 mod video;
 mod db;
-mod date;
 
 fn main() -> Result<(), NewTubeError> {
     match Command::parse() {
         Add(add_command) => add(&add_command.playlist_id),
+        AddAll(add_all_command) => add_all(add_all_command.playlists_json_path),
         New => new(),
         NewJson => new_json(),
         Last => last(),
-        PlaylistsJSON => unimplemented!()
+        PlaylistsJSON => playlists_json()
     }
 }
 
@@ -33,6 +36,14 @@ fn add(id: &str) -> Result<(), NewTubeError> {
     };
 
     database.add_playlist(playlist)?;
+    Ok(())
+}
+
+fn add_all(playlists_json_path: PathBuf) -> Result<(), NewTubeError> {
+    let json_file = File::open(playlists_json_path).expect("open file");
+    let ids: Vec<String> = serde_json::from_reader(json_file).expect("read file");
+
+    ids.into_iter().for_each(|id| add(&id).unwrap());
     Ok(())
 }
 
@@ -85,10 +96,20 @@ fn last() -> Result<(), NewTubeError> {
     Ok(())
 }
 
+fn playlists_json() -> Result<(), NewTubeError> {
+    let database = Database::open()?;
+    let playlist_ids = database.get_playlist_ids()?;
+    let playlist_ids_json = serde_json::to_string(&playlist_ids).unwrap();
+    println!("{playlist_ids_json}");
+    Ok(())
+}
+
 #[derive(Parser)]
 enum Command {
     /// Add a playlist id
-    Add(AddPlaylistCommand),
+    Add(AddCommand),
+    /// Add a JSON list of playlists
+    AddAll(AddAllCommand),
     /// Show the new videos of today
     New,
     /// Get the new videos as JSON
@@ -101,9 +122,15 @@ enum Command {
 }
 
 #[derive(Parser)]
-struct AddPlaylistCommand {
+struct AddCommand {
     /// The id of a "All Videos" playlist
     playlist_id: String,
+}
+
+#[derive(Parser)]
+struct AddAllCommand {
+    /// Path to a JSON containing a list of playlist ids to add
+    playlists_json_path: PathBuf
 }
 
 #[error]

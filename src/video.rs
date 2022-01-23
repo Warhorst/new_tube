@@ -1,7 +1,6 @@
+use chrono::{DateTime, Local};
 use cli_table::row::{Row, ToRow};
 use serde::Serialize;
-
-use crate::date::Date;
 
 #[derive(Debug, Serialize)]
 pub struct Video {
@@ -9,7 +8,7 @@ pub struct Video {
     pub channel_name: String,
     pub name: String,
     pub id: String,
-    pub release_date: Date,
+    pub release_date: String,
 }
 
 impl Video {
@@ -27,16 +26,26 @@ impl Video {
             channel_name,
             name,
             id,
-            release_date: Date::from_video_date(&release_date),
+            release_date,
         }
     }
 
+    /// Check if the given date is lower than the date of this video. The date string must be a valid
+    /// RFC 3339 date string.
     pub fn is_new(&self, last_video_release: &str) -> bool {
-        Date::from_db_playlist_date(last_video_release) < self.release_date
+        let last_video_release = DateTime::parse_from_rfc3339(last_video_release).unwrap();
+        let video_release = DateTime::parse_from_rfc3339(&self.release_date).unwrap();
+        last_video_release < video_release
     }
 
     fn create_video_link(&self) -> String {
         format!("https://www.youtube.com/watch?v={}", self.id)
+    }
+
+    fn get_localtime_release_date(&self) -> String {
+        let utc_date_time = DateTime::parse_from_rfc3339(&self.release_date).unwrap();
+        let local_date_time = DateTime::<Local>::from(utc_date_time);
+        local_date_time.format("%d.%m.%Y %H:%M").to_string()
     }
 }
 
@@ -46,12 +55,13 @@ impl ToRow<4> for Video {
             self.channel_name.clone(),
             shorten_video_name(self.name.clone()),
             self.create_video_link(),
-            self.release_date.to_db_playlist_date()
+            self.get_localtime_release_date()
         ])
     }
 }
 
 /// Names can get to long to display in a table cell. Limit to max 45 letters.
+/// TODO: fix this in cli_table, not here
 fn shorten_video_name(name: String) -> String {
     match name.len() < 45 {
         true => name,

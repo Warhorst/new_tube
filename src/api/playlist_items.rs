@@ -10,21 +10,26 @@ pub struct PlaylistItems {
 
 #[derive(Debug, Deserialize)]
 pub struct PlaylistItem {
-    pub snippet: Snippet
+    pub snippet: Snippet,
+    #[serde(rename(deserialize = "contentDetails"))]
+    pub content_details: ContentDetails
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Snippet {
-    #[serde(rename(deserialize = "publishedAt"))]
-    pub published_at: String,
     pub title: String,
     #[serde(rename(deserialize = "channelTitle"))]
     pub channel_title: String,
-    #[serde(rename(deserialize = "channelId"))]
-    pub channel_id: String,
+    #[serde(rename(deserialize = "playlistId"))]
+    pub playlist_id: String,
     #[serde(rename(deserialize = "resourceId"))]
     pub resource_id: ResourceId
+}
 
+#[derive(Debug, Deserialize)]
+pub struct ContentDetails {
+    #[serde(rename(deserialize = "videoPublishedAt"))]
+    pub video_published_at: String
 }
 
 #[derive(Debug, Deserialize)]
@@ -38,18 +43,18 @@ impl Into<Vec<Video>> for PlaylistItems {
         self.items
             .into_iter()
             .map(|item| Video::new(
-                item.snippet.channel_id,
+                item.snippet.playlist_id,
                 item.snippet.channel_title,
                 item.snippet.title,
                 item.snippet.resource_id.video_id,
-                item.snippet.published_at
+                item.content_details.video_published_at
             )).collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::playlist_items::{PlaylistItem, PlaylistItems, ResourceId, Snippet};
+    use crate::api::playlist_items::{ContentDetails, PlaylistItem, PlaylistItems, ResourceId, Snippet};
     use crate::video::Video;
 
     #[test]
@@ -58,24 +63,28 @@ mod tests {
             items: vec![
                 PlaylistItem {
                     snippet: Snippet {
-                        published_at: "2021-12-19T19:13:00Z".to_string(),
                         title: "V0".to_string(),
                         channel_title: "C0".to_string(),
-                        channel_id: "CID0".to_string(),
+                        playlist_id: "CID0".to_string(),
                         resource_id: ResourceId {
                             video_id: "I0".to_string()
                         }
+                    },
+                    content_details: ContentDetails {
+                        video_published_at: "2021-12-18T19:13:00Z".to_string()
                     }
                 },
                 PlaylistItem {
                     snippet: Snippet {
-                        published_at: "2021-12-18T19:13:00Z".to_string(),
                         title: "V1".to_string(),
                         channel_title: "C1".to_string(),
-                        channel_id: "CID1".to_string(),
+                        playlist_id: "CID1".to_string(),
                         resource_id: ResourceId {
                             video_id: "I1".to_string()
                         }
+                    },
+                    content_details: ContentDetails {
+                        video_published_at: "2021-12-18T19:13:00Z".to_string()
                     }
                 }
             ]

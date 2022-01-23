@@ -4,7 +4,6 @@ use std::path::PathBuf;
 use error_generator::error;
 use rusqlite::{Connection, Row};
 
-use crate::date::Date;
 use crate::video::Video;
 
 pub struct Database {
@@ -45,6 +44,10 @@ impl Database {
         Ok(result.map(|r| r.unwrap()).collect())
     }
 
+    pub fn get_playlist_ids(&self) -> Result<Vec<String>, DBError> {
+        Ok(self.get_playlists()?.into_iter().map(|p| p.id).collect())
+    }
+
     pub fn add_playlist(&self, playlist: Playlist) -> Result<(), DBError> {
         self.connection.execute("\
             INSERT INTO Playlists (id, channel_name, last_video_name, last_video_id, last_video_release)
@@ -57,7 +60,7 @@ impl Database {
     pub fn update_playlist(&self, video: &Video) -> Result<(), DBError> {
         self.connection.execute("\
             UPDATE Playlists SET channel_name=?2, last_video_name=?3, last_video_id=?4, last_video_release=?5 WHERE id=?1;
-        ", &[&video.playlist_id, &video.channel_name, &video.name, &video.id, &video.release_date.to_db_playlist_date()])?;
+        ", &[&video.playlist_id, &video.channel_name, &video.name, &video.id, &video.release_date])?;
 
         Ok(())
     }
@@ -95,7 +98,7 @@ impl From<(&str, &Video)> for Playlist {
             channel_name: video.channel_name.clone(),
             last_video_name: video.name.clone(),
             last_video_id: video.id.clone(),
-            last_video_release: video.release_date.to_db_playlist_date()
+            last_video_release: video.release_date.clone()
         }
     }
 }
@@ -107,7 +110,7 @@ impl Into<Video> for Playlist {
             id: self.last_video_id,
             name: self.last_video_name,
             channel_name: self.channel_name,
-            release_date: Date::from_db_playlist_date(&self.last_video_release)
+            release_date: self.last_video_release
         }
     }
 }

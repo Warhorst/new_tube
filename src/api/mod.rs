@@ -35,7 +35,7 @@ impl APICaller {
     fn create_url(&self, id: PlaylistId) -> String {
         format!(
             "https://www.googleapis.com/youtube/v3/playlistItems?\
-            part=snippet\
+            part=snippet,contentDetails\
             &maxResults={}\
             &playlistId={}\
             &key={}",
