@@ -2,7 +2,7 @@ use std::fs::File;
 use std::path::PathBuf;
 
 use clap::Parser;
-use cli_table::table::Table;
+use cli_table::table::{Table, Width};
 use error_generator::error;
 
 use Command::*;
@@ -50,9 +50,15 @@ fn add_all(playlists_json_path: PathBuf) -> Result<(), NewTubeError> {
 fn new() -> Result<(), NewTubeError> {
     let new_videos = get_new_videos_and_update_database()?;
 
-    Table::new()
+    Table::new(|video: Video| [
+        video.channel_name.clone(),
+        video.name.clone(),
+        video.link(),
+        video.localtime_release_date()
+    ])
         .header(["Channel", "Video", "Link", "Release Date"])
-        .print_data(new_videos.iter());
+        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
+        .print(new_videos.into_iter());
 
     Ok(())
 }
@@ -90,9 +96,15 @@ fn last() -> Result<(), NewTubeError> {
         .map(Playlist::into)
         .collect();
 
-    Table::new()
+    Table::new(|video: Video| [
+        video.channel_name.clone(),
+        video.name.clone(),
+        video.link(),
+        video.localtime_release_date()
+    ])
         .header(["Channel", "Video", "Link", "Release Date"])
-        .print_data(videos.iter());
+        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
+        .print(videos.into_iter());
     Ok(())
 }
 

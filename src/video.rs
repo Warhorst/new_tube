@@ -1,5 +1,4 @@
 use chrono::{DateTime, Local};
-use cli_table::row::{Row, ToRow};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -38,34 +37,14 @@ impl Video {
         last_video_release < video_release
     }
 
-    fn create_video_link(&self) -> String {
+    pub fn link(&self) -> String {
         format!("https://www.youtube.com/watch?v={}", self.id)
     }
 
-    fn get_localtime_release_date(&self) -> String {
+    pub fn localtime_release_date(&self) -> String {
         let utc_date_time = DateTime::parse_from_rfc3339(&self.release_date).unwrap();
         let local_date_time = DateTime::<Local>::from(utc_date_time);
         local_date_time.format("%d.%m.%Y %H:%M").to_string()
-    }
-}
-
-impl ToRow<4> for Video {
-    fn to_table_row(&self) -> Row<4> {
-        Row::from([
-            self.channel_name.clone(),
-            shorten_video_name(self.name.clone()),
-            self.create_video_link(),
-            self.get_localtime_release_date()
-        ])
-    }
-}
-
-/// Names can get to long to display in a table cell. Limit to max 45 letters.
-/// TODO: fix this in cli_table, not here
-fn shorten_video_name(name: String) -> String {
-    match name.len() < 45 {
-        true => name,
-        false => format!("{}...", &name[0..42])
     }
 }
 
