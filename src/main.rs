@@ -58,7 +58,7 @@ fn new() -> Result<(), NewTubeError> {
     ])
         .header(["Channel", "Video", "Link", "Release Date"])
         .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
-        .print(new_videos.into_iter());
+        .print(new_videos);
 
     Ok(())
 }
@@ -91,10 +91,11 @@ fn get_new_videos_and_update_database() -> Result<Vec<Video>, NewTubeError> {
 
 fn last() -> Result<(), NewTubeError> {
     let database = Database::open()?;
-    let videos: Vec<Video> = database.get_playlists()?
+    let mut videos: Vec<Video> = database.get_playlists()?
         .into_iter()
         .map(Playlist::into)
         .collect();
+    videos.sort_by(|v0, v1| v1.release_date_time().cmp(&v0.release_date_time()));
 
     Table::new(|video: Video| [
         video.channel_name.clone(),
@@ -104,7 +105,7 @@ fn last() -> Result<(), NewTubeError> {
     ])
         .header(["Channel", "Video", "Link", "Release Date"])
         .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
-        .print(videos.into_iter());
+        .print(videos);
     Ok(())
 }
 

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Local};
+use chrono::{DateTime, FixedOffset, Local};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
@@ -35,6 +35,10 @@ impl Video {
         let last_video_release = DateTime::parse_from_rfc3339(last_video_release).unwrap();
         let video_release = DateTime::parse_from_rfc3339(&self.release_date).unwrap();
         last_video_release < video_release
+    }
+
+    pub fn release_date_time(&self) -> DateTime<FixedOffset> {
+        DateTime::parse_from_rfc3339(&self.release_date).unwrap()
     }
 
     pub fn link(&self) -> String {
