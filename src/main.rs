@@ -54,7 +54,7 @@ fn new() -> Result<(), NewTubeError> {
         video.channel_name.clone(),
         video.name.clone(),
         video.link(),
-        video.localtime_release_date()
+        video.formatted_release_date()
     ])
         .header(["Channel", "Video", "Link", "Release Date"])
         .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
@@ -95,13 +95,13 @@ fn last() -> Result<(), NewTubeError> {
         .into_iter()
         .map(Playlist::into)
         .collect();
-    videos.sort_by(|v0, v1| v1.release_date_time().cmp(&v0.release_date_time()));
+    videos.sort_by(|v0, v1| v1.release_date.cmp(&v0.release_date));
 
     Table::new(|video: Video| [
         video.channel_name.clone(),
         video.name.clone(),
         video.link(),
-        video.localtime_release_date()
+        video.formatted_release_date()
     ])
         .header(["Channel", "Video", "Link", "Release Date"])
         .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])

@@ -60,7 +60,7 @@ impl Database {
     pub fn update_playlist(&self, video: &Video) -> Result<(), DBError> {
         self.connection.execute("\
             UPDATE Playlists SET channel_name=?2, last_video_name=?3, last_video_id=?4, last_video_release=?5 WHERE id=?1;
-        ", &[&video.playlist_id, &video.channel_name, &video.name, &video.id, &video.release_date])?;
+        ", &[&video.playlist_id, &video.channel_name, &video.name, &video.id, &video.rfc3339_release_date()])?;
 
         Ok(())
     }
@@ -98,20 +98,20 @@ impl From<(&str, &Video)> for Playlist {
             channel_name: video.channel_name.clone(),
             last_video_name: video.name.clone(),
             last_video_id: video.id.clone(),
-            last_video_release: video.release_date.clone()
+            last_video_release: video.rfc3339_release_date()
         }
     }
 }
 
 impl Into<Video> for Playlist {
     fn into(self) -> Video {
-        Video {
-            playlist_id: self.id,
-            id: self.last_video_id,
-            name: self.last_video_name,
-            channel_name: self.channel_name,
-            release_date: self.last_video_release
-        }
+        Video::new(
+            self.id,
+            self.channel_name,
+            self.last_video_name,
+            self.last_video_id,
+            self.last_video_release
+        )
     }
 }
 
