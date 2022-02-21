@@ -8,13 +8,15 @@ use error_generator::error;
 use Command::*;
 use NewTubeError::*;
 
-use crate::api::APICaller;
 use crate::db::{Database, Playlist};
 use crate::video::Video;
+use crate::video_retriever::VideoRetriever;
 
 mod api;
 mod video;
 mod db;
+mod video_retriever;
+mod date_helper;
 
 fn main() -> Result<(), NewTubeError> {
     match Command::parse() {
@@ -29,7 +31,8 @@ fn main() -> Result<(), NewTubeError> {
 
 fn add(id: &str) -> Result<(), NewTubeError> {
     let database = Database::open()?;
-    let latest_videos = APICaller::new()?.get_latest_videos(id)?;
+    let video_retriever = VideoRetriever::new()?;
+    let latest_videos = video_retriever.get_latest_videos_for_playlist(id)?;
     let playlist = match latest_videos.first() {
         Some(video) => Playlist::from((id, video)),
         None => return Err(PlaylistHasNoVideos)
@@ -54,10 +57,11 @@ fn new() -> Result<(), NewTubeError> {
         video.channel_name.clone(),
         video.name.clone(),
         video.link(),
-        video.formatted_release_date()
+        video.formatted_release_date(),
+        video.duration
     ])
-        .header(["Channel", "Video", "Link", "Release Date"])
-        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
+        .header(["Channel", "Video", "Link", "Release Date", "Duration"])
+        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic, Width::Dynamic])
         .print(new_videos);
 
     Ok(())
@@ -72,14 +76,14 @@ fn new_json() -> Result<(), NewTubeError> {
 
 fn get_new_videos_and_update_database() -> Result<Vec<Video>, NewTubeError> {
     let database = Database::open()?;
-    let api_caller = APICaller::new()?;
+    let video_retriever = VideoRetriever::new()?;
     let mut new_videos = vec![];
 
     for list in database.get_playlists()? {
         let list_id = &list.id;
         let last_video_release = &list.last_video_release;
 
-        new_videos.extend(api_caller.get_latest_videos(list_id)?.into_iter().filter(|v| v.is_new(last_video_release)))
+        new_videos.extend(video_retriever.get_new_videos_for_playlist(list_id, last_video_release)?)
     }
 
     for video in &new_videos {
@@ -101,10 +105,11 @@ fn last() -> Result<(), NewTubeError> {
         video.channel_name.clone(),
         video.name.clone(),
         video.link(),
-        video.formatted_release_date()
+        video.formatted_release_date(),
+        video.duration
     ])
-        .header(["Channel", "Video", "Link", "Release Date"])
-        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
+        .header(["Channel", "Video", "Link", "Release Date", "Duration"])
+        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic, Width::Dynamic])
         .print(videos);
     Ok(())
 }
@@ -150,8 +155,8 @@ struct AddAllCommand {
 enum NewTubeError {
     #[error(message = "The playlist for the given id has no videos.")]
     PlaylistHasNoVideos,
-    #[error(message = "Youtube API Call failed. Error: {_0}", impl_from)]
-    ApiCallFailed(crate::api::ApiCallerError),
+    #[error(message = "Video retrieval failed. Error: {_0}", impl_from)]
+    VideoRetrieveFailed(crate::video_retriever::VideoRetrieveError),
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
     DatabaseCallFailed(crate::db::DBError),
 }

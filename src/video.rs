@@ -1,5 +1,8 @@
-use chrono::{DateTime, Local};
-use serde::{Serialize, Serializer};
+use serde::Serialize;
+
+use crate::api::playlist_items::PlaylistItem;
+use crate::api::video_items::VideoItem;
+use crate::date_helper::string_to_local_time_date;
 
 #[derive(Debug, Serialize)]
 pub struct Video {
@@ -7,38 +10,38 @@ pub struct Video {
     pub channel_name: String,
     pub name: String,
     pub id: String,
-    #[serde(serialize_with = "serialize_date_time")]
-    pub release_date: DateTime<Local>,
+    pub release_date: String,
+    pub duration: String
 }
 
 impl Video {
-    /// Create a Video from the given parameters. The release_date must be a valid
-    /// RFC 3339 date string (see https://www.ietf.org/rfc/rfc3339.txt).
-    /// The release date is in UTC and will be converted to Local.
     pub fn new(
         playlist_id: String,
         channel_name: String,
         name: String,
         id: String,
         release_date: String,
+        duration: String
     ) -> Self {
-        let utc_release_date = DateTime::parse_from_rfc3339(&release_date).unwrap();
-
         Video {
             playlist_id,
             channel_name,
             name,
             id,
-            release_date: DateTime::<Local>::from(utc_release_date),
+            release_date,
+            duration
         }
     }
 
-    /// Check if the given date is lower than the date of this video. The date string must be a valid
-    /// RFC 3339 date string.
-    pub fn is_new(&self, last_video_release: &str) -> bool {
-        let last_video_release_utc = DateTime::parse_from_rfc3339(last_video_release).unwrap();
-        let last_video_release_local = DateTime::<Local>::from(last_video_release_utc);
-        last_video_release_local < self.release_date
+    pub fn from_playlist_item_and_video_item(playlist_item: &PlaylistItem, video_item: &VideoItem) -> Self {
+        Self::new(
+            playlist_item.snippet.playlist_id.clone(),
+            playlist_item.snippet.channel_title.clone(),
+            playlist_item.snippet.title.clone(),
+            playlist_item.snippet.resource_id.video_id.clone(),
+            playlist_item.content_details.video_published_at.clone(),
+            video_item.content_details.duration.clone()
+        )
     }
 
     pub fn link(&self) -> String {
@@ -46,30 +49,6 @@ impl Video {
     }
 
     pub fn formatted_release_date(&self) -> String {
-        self.release_date.format("%d.%m.%Y %H:%M").to_string()
-    }
-
-    pub fn rfc3339_release_date(&self) -> String {
-        self.release_date.to_rfc3339()
-    }
-}
-
-fn serialize_date_time<S>(date_time: &DateTime<Local>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
-    serializer.serialize_str(&date_time.to_rfc3339())
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::video::Video;
-
-    #[test]
-    fn create_video_works() {
-        Video::new(
-            "PlaylistID".to_string(),
-            "Channel".to_string(),
-            "Video".to_string(),
-            "69NICE420".to_string(),
-            "2021-12-19T19:13:00Z".to_string(),
-        );
+        string_to_local_time_date(&self.release_date).format("%d.%m.%Y %H:%M").to_string()
     }
 }
