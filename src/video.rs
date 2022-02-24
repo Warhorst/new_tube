@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::api::playlist_items::PlaylistItem;
 use crate::api::video_items::VideoItem;
 use crate::date_helper::string_to_local_time_date;
+use crate::duration_formatter::format_duration;
 
 #[derive(Debug, Serialize)]
 pub struct Video {
@@ -50,5 +51,9 @@ impl Video {
 
     pub fn formatted_release_date(&self) -> String {
         string_to_local_time_date(&self.release_date).format("%d.%m.%Y %H:%M").to_string()
+    }
+
+    pub fn formatted_duration(&self) -> String {
+        format_duration(self.duration.clone())
     }
 }

@@ -17,6 +17,7 @@ mod video;
 mod db;
 mod video_retriever;
 mod date_helper;
+mod duration_formatter;
 
 fn main() -> Result<(), NewTubeError> {
     match Command::parse() {
@@ -58,7 +59,7 @@ fn new() -> Result<(), NewTubeError> {
         video.name.clone(),
         video.link(),
         video.formatted_release_date(),
-        video.duration
+        video.formatted_duration()
     ])
         .header(["Channel", "Video", "Link", "Release Date", "Duration"])
         .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic, Width::Dynamic])
@@ -77,14 +78,15 @@ fn new_json() -> Result<(), NewTubeError> {
 fn get_new_videos_and_update_database() -> Result<Vec<Video>, NewTubeError> {
     let database = Database::open()?;
     let video_retriever = VideoRetriever::new()?;
-    let mut new_videos = vec![];
+    let mut playlist_ids_with_timestamps = vec![];
 
     for list in database.get_playlists()? {
         let list_id = &list.id;
         let last_video_release = &list.last_video_release;
-
-        new_videos.extend(video_retriever.get_new_videos_for_playlist(list_id, last_video_release)?)
+        playlist_ids_with_timestamps.push((list_id.clone(), last_video_release.clone()));
     }
+
+    let new_videos = video_retriever.get_new_videos_for_playlists(playlist_ids_with_timestamps)?;
 
     for video in &new_videos {
         database.update_playlist(video)?
@@ -106,7 +108,7 @@ fn last() -> Result<(), NewTubeError> {
         video.name.clone(),
         video.link(),
         video.formatted_release_date(),
-        video.duration
+        video.formatted_duration()
     ])
         .header(["Channel", "Video", "Link", "Release Date", "Duration"])
         .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic, Width::Dynamic])

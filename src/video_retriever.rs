@@ -9,6 +9,7 @@ use crate::date_helper::date_is_new;
 use crate::Video;
 use crate::video_retriever::VideoRetrieveError::{ItemAmountMissMatch, ItemIdMissMatch};
 
+pub type PlaylistIdWithTimestamp = (String, String);
 pub type Result<T> = std::result::Result<T, VideoRetrieveError>;
 
 pub struct VideoRetriever {
@@ -29,11 +30,20 @@ impl VideoRetriever {
         Self::merge_playlist_items_and_video_items(playlist_items, video_items)
     }
 
-    pub fn get_new_videos_for_playlist(&self, playlist_id: &str, last_video_timestamp: &str) -> Result<Vec<Video>> {
-        let playlist_items = self.get_latest_playlist_items(playlist_id, last_video_timestamp)?;
+    pub fn get_new_videos_for_playlists<I: IntoIterator<Item=PlaylistIdWithTimestamp>>(&self, playlist_ids_with_timestamp: I) -> Result<Vec<Video>> {
+        let playlist_items = self.get_latest_playlist_items_from_id_timestamp_iterator(playlist_ids_with_timestamp)?;
         let video_ids = playlist_items.get_video_ids();
         let video_items = self.api_caller.get_video_items(video_ids)?;
         Self::merge_playlist_items_and_video_items(playlist_items, video_items)
+    }
+
+    fn get_latest_playlist_items_from_id_timestamp_iterator<I: IntoIterator<Item=PlaylistIdWithTimestamp>>(&self, playlist_ids_with_timestamp: I) -> Result<PlaylistItems> {
+        let mut playlist_items = PlaylistItems::empty();
+        for (id, timestamp) in playlist_ids_with_timestamp {
+            let items = self.get_latest_playlist_items(&id, &timestamp)?;
+            playlist_items.merge(items)
+        }
+        Ok(playlist_items)
     }
 
     fn get_latest_playlist_items(&self, playlist_id: &str, last_video_timestamp: &str) -> Result<PlaylistItems> {
