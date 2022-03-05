@@ -17,8 +17,9 @@ impl PlaylistItems {
             .collect()
     }
 
-    pub fn merge(&mut self, other: Self) {
+    pub fn merge(mut self, other: Self) -> Self {
         self.items.extend(other.items);
+        self
     }
 }
 
