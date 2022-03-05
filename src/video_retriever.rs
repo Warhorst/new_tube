@@ -32,13 +32,13 @@ impl VideoRetriever {
     }
 
     pub fn get_new_videos_for_playlists(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<Vec<Video>> {
-        let playlist_items = self.get_latest_playlist_items_from_id_timestamp_iterator(playlist_ids_with_timestamp)?;
+        let playlist_items = self.get_latest_playlist_items_from_id_timestamp_vec(playlist_ids_with_timestamp)?;
         let video_ids = playlist_items.get_video_ids();
         let video_items = self.api_caller.get_video_items(video_ids)?;
         Self::merge_playlist_items_and_video_items(playlist_items, video_items)
     }
 
-    fn get_latest_playlist_items_from_id_timestamp_iterator(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<PlaylistItems> {
+    fn get_latest_playlist_items_from_id_timestamp_vec(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<PlaylistItems> {
         let playlist_items = playlist_ids_with_timestamp.par_iter()
             .map(|(id, timestamp)| self.get_latest_playlist_items(&id, &timestamp).unwrap())
             .reduce(|| PlaylistItems::empty(), |item0, item1| item0.merge(item1));
