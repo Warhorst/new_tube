@@ -10,7 +10,8 @@ use Command::*;
 use NewTubeError::*;
 
 use crate::date_helper::compare_video_releases;
-use crate::db::{Database, Playlist};
+use crate::db::Database;
+use crate::playlist::Playlist;
 use crate::video::Video;
 use crate::video_retriever::VideoRetriever;
 
@@ -20,6 +21,7 @@ mod db;
 mod video_retriever;
 mod date_helper;
 mod duration_formatter;
+mod playlist;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
@@ -30,7 +32,8 @@ fn main() -> Result<()> {
         New => new(),
         NewJson => new_json(),
         Last => last(),
-        PlaylistsJSON => playlists_json()
+        PlaylistsJSON => playlists_json(),
+        DbDebug => db_debug()
     }
 }
 
@@ -120,6 +123,10 @@ fn playlists_json() -> Result<()> {
     Ok(())
 }
 
+fn db_debug() -> Result<()> {
+    Ok(Database::open()?.print_debug_info()?)
+}
+
 fn print_table(videos: Vec<Video>) {
     Table::new(|video: Video| [
         video.channel_name.clone(),
@@ -148,6 +155,8 @@ enum Command {
     Last,
     /// Return all saved playlist IDs as JSON
     PlaylistsJSON,
+    /// Print all database rows of the saved videos.
+    DbDebug
 }
 
 #[derive(Parser)]

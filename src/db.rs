@@ -2,16 +2,19 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use error_generator::error;
-use rusqlite::{Connection, Row};
+use rusqlite::{Connection, Row, Statement};
+use crate::Playlist;
 
 use crate::video::Video;
 
+type Result<T> = std::result::Result<T, DBError>;
+
 pub struct Database {
-    connection: Connection
+    connection: Connection,
 }
 
 impl Database {
-    pub fn open() -> Result<Self, DBError> {
+    pub fn open() -> Result<Self> {
         let connection = Connection::open(Self::get_path())?;
 
         connection.execute("\
@@ -34,10 +37,8 @@ impl Database {
         path
     }
 
-    pub fn get_playlists(&self) -> Result<Vec<Playlist>, DBError> {
-        let mut statement = self.connection.prepare("\
-            SELECT * FROM Playlists;
-        ")?;
+    pub fn get_playlists(&self) -> Result<Vec<Playlist>> {
+        let mut statement = self.create_select_all_statement()?;
 
         let result = statement.query_map([], |row| {
             Playlist::try_from(row)
@@ -45,11 +46,11 @@ impl Database {
         Ok(result.map(|r| r.unwrap()).collect())
     }
 
-    pub fn get_playlist_ids(&self) -> Result<Vec<String>, DBError> {
+    pub fn get_playlist_ids(&self) -> Result<Vec<String>> {
         Ok(self.get_playlists()?.into_iter().map(|p| p.id).collect())
     }
 
-    pub fn add_playlist(&self, playlist: Playlist) -> Result<(), DBError> {
+    pub fn add_playlist(&self, playlist: Playlist) -> Result<()> {
         self.connection.execute("\
             INSERT INTO Playlists (id, channel_name, last_video_name, last_video_id, last_video_release, last_video_duration)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6);
@@ -58,67 +59,41 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_playlist(&self, video: &Video) -> Result<(), DBError> {
+    pub fn update_playlist(&self, video: &Video) -> Result<()> {
         self.connection.execute("\
             UPDATE Playlists SET channel_name=?2, last_video_name=?3, last_video_id=?4, last_video_release=?5, last_video_duration=?6 WHERE id=?1;
         ", &[&video.playlist_id, &video.channel_name, &video.name, &video.id, &video.release_date, &video.duration])?;
 
         Ok(())
     }
-}
 
-pub struct Playlist {
-    pub id: String,
-    pub channel_name: String,
-    pub last_video_name: String,
-    pub last_video_id: String,
-    pub last_video_release: String,
-    pub last_video_duration: String
-}
+    pub fn print_debug_info(&self) -> Result<()> {
+        let mut statement = self.create_select_all_statement()?;
 
-impl TryFrom<&Row<'_>> for Playlist {
-    type Error = rusqlite::Error;
+        statement.query_map([], |row| {
+            let column_names = row.column_names();
+            let result = (0..column_names.len()).into_iter()
+                .fold(String::new(), |acc, i| Self::row_to_string(acc, i, row));
+            Ok(result)
+        })?.for_each(|entry_str| println!("{}", entry_str.unwrap()));
 
-    fn try_from(row: &Row) -> Result<Self, Self::Error> {
-        Ok(Playlist {
-            id: row.get(0)?,
-            channel_name: row.get(1)?,
-            last_video_name: row.get(2)?,
-            last_video_id: row.get(3)?,
-            last_video_release: row.get(4)?,
-            last_video_duration: row.get(5)?
-        })
+        Ok(())
+    }
+
+    fn row_to_string(mut acc: String, i: usize, row: &Row) -> String {
+        acc.push_str(row.column_name(i).unwrap());
+        acc.push_str(": ");
+        acc.push_str(&row.get::<_, String>(i).unwrap());
+        acc.push_str("\n");
+        acc
+    }
+
+    fn create_select_all_statement(&self) -> Result<Statement> {
+        Ok(self.connection.prepare("\
+            SELECT * FROM Playlists;
+        ")?)
     }
 }
 
-impl From<(&str, &Video)> for Playlist {
-    fn from(id_video: (&str, &Video)) -> Self {
-        let playlist_id = id_video.0;
-        let video = id_video.1;
-
-        Playlist {
-            id: playlist_id.to_string(),
-            channel_name: video.channel_name.clone(),
-            last_video_name: video.name.clone(),
-            last_video_id: video.id.clone(),
-            last_video_release: video.release_date.clone(),
-            last_video_duration: video.duration.clone()
-        }
-    }
-}
-
-impl Into<Video> for Playlist {
-    fn into(self) -> Video {
-        Video::new(
-            self.id,
-            self.channel_name,
-            self.last_video_name,
-            self.last_video_id,
-            self.last_video_release,
-            self.last_video_duration
-        )
-    }
-}
-
-#[error(message = "Error while connecting to the database or while executing queries: {0}", impl_from)]
+#[error(message = "Error while connecting to the database or while executing queries: {self.0}", impl_from)]
 pub struct DBError(rusqlite::Error);
