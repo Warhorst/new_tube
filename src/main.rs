@@ -22,6 +22,7 @@ mod video_retriever;
 mod date_helper;
 mod duration_formatter;
 mod playlist;
+mod bot;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 

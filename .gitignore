@@ -11,3 +11,5 @@ Cargo.lock
 
 #ItelliJ
 .idea
+
+bot/target
