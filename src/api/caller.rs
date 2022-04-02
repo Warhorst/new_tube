@@ -19,7 +19,7 @@ impl APICaller {
         Ok(APICaller { api_key })
     }
 
-    pub fn get_playlist_items(&self, id: &str) -> Result<PlaylistItems> {
+    pub async fn get_playlist_items(&self, id: &str) -> Result<PlaylistItems> {
         let url = format!(
             "https://www.googleapis.com/youtube/v3/playlistItems?\
             part=snippet,contentDetails\
@@ -30,10 +30,10 @@ impl APICaller {
             self.api_key
         );
 
-        self.get(&url)
+        self.get(&url).await
     }
 
-    pub fn get_video_items(&self, ids: Vec<&str>) -> Result<VideoItems> {
+    pub async fn get_video_items(&self, ids: Vec<&str>) -> Result<VideoItems> {
         let url = format!(
             "https://www.googleapis.com/youtube/v3/videos?\
             part=contentDetails\
@@ -47,14 +47,14 @@ impl APICaller {
             self.api_key
         );
 
-        self.get(&url)
+        self.get(&url).await
     }
 
-    fn get<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
-        let response = reqwest::blocking::get(url)?;
+    async fn get<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
+        let response = reqwest::get(url).await?;
         let body = match response.status().as_u16() {
-            200 => response.text()?,
-            code => return Err(ErrorResponse(code, response.text()?))
+            200 => response.text().await?,
+            code => return Err(ErrorResponse(code, response.text().await?))
         };
         let value = serde_json::from_str(&body)?;
         Ok(value)

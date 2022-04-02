@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use error_generator::error;
-use rayon::prelude::*;
+use futures::future::join_all;
 
 use crate::api::caller::{APICaller, ApiCallerError};
 use crate::api::playlist_items::{PlaylistItem, PlaylistItems};
@@ -24,29 +24,35 @@ impl VideoRetriever {
         })
     }
 
-    pub fn get_latest_videos_for_playlist(&self, playlist_id: &str) -> Result<Vec<Video>> {
-        let playlist_items = self.api_caller.get_playlist_items(playlist_id)?;
+    pub async fn get_latest_videos_for_playlist(&self, playlist_id: &str) -> Result<Vec<Video>> {
+        let playlist_items = self.api_caller.get_playlist_items(playlist_id).await?;
         let video_ids = playlist_items.get_video_ids();
-        let video_items = self.api_caller.get_video_items(video_ids)?;
+        let video_items = self.api_caller.get_video_items(video_ids).await?;
         Self::merge_playlist_items_and_video_items(playlist_items, video_items)
     }
 
-    pub fn get_new_videos_for_playlists(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<Vec<Video>> {
-        let playlist_items = self.get_latest_playlist_items_from_id_timestamp_vec(playlist_ids_with_timestamp)?;
+    pub async fn get_new_videos_for_playlists(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<Vec<Video>> {
+        let playlist_items = self.get_latest_playlist_items_from_id_timestamp_vec(playlist_ids_with_timestamp).await?;
         let video_ids = playlist_items.get_video_ids();
-        let video_items = self.api_caller.get_video_items(video_ids)?;
+        let video_items = self.api_caller.get_video_items(video_ids).await?;
         Self::merge_playlist_items_and_video_items(playlist_items, video_items)
     }
 
-    fn get_latest_playlist_items_from_id_timestamp_vec(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<PlaylistItems> {
-        let playlist_items = playlist_ids_with_timestamp.par_iter()
-            .map(|(id, timestamp)| self.get_latest_playlist_items(&id, &timestamp).unwrap())
-            .reduce(|| PlaylistItems::empty(), |item0, item1| item0.merge(item1));
+    async fn get_latest_playlist_items_from_id_timestamp_vec(&self, playlist_ids_with_timestamp: Vec<PlaylistIdWithTimestamp>) -> Result<PlaylistItems> {
+        let outputs =  join_all(
+            playlist_ids_with_timestamp
+                .into_iter()
+                .map(|(id, timestamp)| self.get_latest_playlist_items(id.clone(), timestamp.clone()))
+        ).await;
+
+        let playlist_items = outputs.into_iter()
+            .map(|res| res.unwrap())
+            .fold(PlaylistItems::empty(), |item0, item1| item0.merge(item1));
         Ok(playlist_items)
     }
 
-    fn get_latest_playlist_items(&self, playlist_id: &str, last_video_timestamp: &str) -> Result<PlaylistItems> {
-        let playlist_items = self.api_caller.get_playlist_items(playlist_id)?;
+    async fn get_latest_playlist_items(&self, playlist_id: String, last_video_timestamp: String) -> Result<PlaylistItems> {
+        let playlist_items = self.api_caller.get_playlist_items(&playlist_id).await?;
         Ok(PlaylistItems {
             items: playlist_items.items
                 .into_iter()
