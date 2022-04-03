@@ -4,6 +4,7 @@ use serde::de::DeserializeOwned;
 use crate::api::caller::ApiCallerError::ErrorResponse;
 use crate::api::playlist_items::PlaylistItems;
 use crate::api::video_items::VideoItems;
+use crate::environment::get_youtube_api_key;
 
 pub type Result<T> = std::result::Result<T, ApiCallerError>;
 
@@ -12,10 +13,8 @@ pub struct APICaller {
 }
 
 impl APICaller {
-    const YOUTUBE_API_KEY: &'static str = "YOUTUBE_API_KEY";
-
     pub fn new() -> Result<Self> {
-        let api_key = std::env::var(Self::YOUTUBE_API_KEY)?;
+        let api_key = get_youtube_api_key()?;
         Ok(APICaller { api_key })
     }
 

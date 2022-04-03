@@ -7,13 +7,13 @@ use error_generator::error;
 
 use Command::*;
 
-use crate::bot::Bot;
 use crate::date_helper::compare_video_releases;
 use crate::db::Database;
+use crate::new_tube_service::NewTubeService;
 use crate::playlist::Playlist;
+use crate::telegram::bot::Bot;
 use crate::video::Video;
 use crate::video_retriever::VideoRetriever;
-use crate::video_service::VideoService;
 
 mod api;
 mod video;
@@ -22,8 +22,9 @@ mod video_retriever;
 mod date_helper;
 mod duration_formatter;
 mod playlist;
-mod bot;
-mod video_service;
+mod telegram;
+mod new_tube_service;
+mod environment;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
@@ -41,8 +42,8 @@ async fn main() -> Result<()> {
 }
 
 async fn add(id: &str) -> Result<()> {
-    let video_service = VideoService::new()?;
-    Ok(video_service.add_video(id).await?)
+    let video_service = NewTubeService::new()?;
+    Ok(video_service.add_playlist(id).await?)
 }
 
 async fn add_all(playlists_json_path: PathBuf) -> Result<()> {
@@ -57,7 +58,7 @@ async fn add_all(playlists_json_path: PathBuf) -> Result<()> {
 }
 
 async fn new() -> Result<()> {
-    let video_service = VideoService::new()?;
+    let video_service = NewTubeService::new()?;
     let new_videos = video_service.get_new_videos_and_update_database().await?;
     print_table(new_videos);
     Ok(())
@@ -113,7 +114,7 @@ enum Command {
     PlaylistsJSON,
     /// Print all database rows of the saved videos.
     DbDebug,
-    /// Run the bot
+    /// Run the telegram
     Bot
 }
 
@@ -132,9 +133,9 @@ struct AddAllCommand {
 #[error]
 enum NewTubeError {
     #[error(message = "{_0}", impl_from)]
-    VideoServiceError(crate::video_service::VideoServiceError),
+    VideoServiceError(crate::new_tube_service::NewTubeServiceError),
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
     DatabaseCallFailed(crate::db::DBError),
     #[error(message = "{_0}", impl_from)]
-    BotError(crate::bot::BotError)
+    BotError(crate::telegram::bot::BotError)
 }

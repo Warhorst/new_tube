@@ -3,24 +3,26 @@ use std::collections::HashMap;
 use error_generator::error;
 
 use crate::{compare_video_releases, Database, Playlist, Video, VideoRetriever};
-use crate::video_service::VideoServiceError::PlaylistHasNoVideos;
+use crate::new_tube_service::NewTubeServiceError::PlaylistHasNoVideos;
 
-pub struct VideoService {
+/// Central service of new_tube. Provides methods to add playlists
+/// and fetch new videos.
+pub struct NewTubeService {
     database: Database,
     video_retriever: VideoRetriever
 }
 
-pub type Result<T> = std::result::Result<T, VideoServiceError>;
+pub type Result<T> = std::result::Result<T, NewTubeServiceError>;
 
-impl VideoService {
+impl NewTubeService {
     pub fn new() -> Result<Self> {
-        Ok(VideoService {
+        Ok(NewTubeService {
             database: Database::open()?,
             video_retriever: VideoRetriever::new()?
         })
     }
 
-    pub async fn add_video(&self, id: &str) -> Result<()> {
+    pub async fn add_playlist(&self, id: &str) -> Result<()> {
         let latest_videos = self.video_retriever.get_latest_videos_for_playlist(id).await?;
         let playlist = match latest_videos.iter().max_by(|v0, v1| compare_video_releases(v0, v1)) {
             Some(video) => Playlist::from((id, video)),
@@ -63,7 +65,7 @@ impl VideoService {
 }
 
 #[error]
-pub enum VideoServiceError {
+pub enum NewTubeServiceError {
     #[error(message = "{_0}", impl_from)]
     DatabaseAccessFailed(crate::db::DBError),
     #[error(message = "{_0}", impl_from)]
