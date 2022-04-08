@@ -3,18 +3,18 @@ use futures::StreamExt;
 use telegram_bot::{Api, Message, MessageKind, Update, UpdateKind};
 
 use crate::environment::get_telegram_api_key;
-use crate::telegram::video_fetch_worker::VideoFetchWorker;
+use crate::telegram::background_video_fetcher::BackgroundVideoFetcher;
 
 type BotResult<T> = Result<T, BotError>;
 
 pub struct Bot {
-    video_fetch_worker: VideoFetchWorker
+    video_fetch_worker: BackgroundVideoFetcher
 }
 
 impl Bot {
     pub fn new() -> BotResult<Self> {
         Ok(Bot {
-            video_fetch_worker: VideoFetchWorker::new()
+            video_fetch_worker: BackgroundVideoFetcher::new()
         })
     }
 
@@ -25,10 +25,10 @@ impl Bot {
         while let Some(update_result) = stream.next().await {
             if let Some((text, message)) = self.get_text_and_message_from_update(update_result?) {
                 match text.as_str() {
-                    "Start" => {
+                    "/start" => {
                         self.video_fetch_worker.start(api.clone(), message.chat)
                     },
-                    "End" => {
+                    "/stop" => {
                         self.video_fetch_worker.stop()
                     },
                     _ => println!("{text}")
