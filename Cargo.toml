@@ -24,3 +24,4 @@ clap = { version = "3.0.0-rc.8", features = ["derive"] }
 futures = "0.3.21"
 tokio = { version = "0.2.5", features = ["full"] }
 telegram-bot = "0.8.0"
+clokwerk = "0.3.5"

@@ -1,85 +1,60 @@
-use std::sync::mpsc::{Receiver, TryRecvError};
-use std::thread;
-use std::time::Duration;
-
+use error_generator::error;
 use telegram_bot::{Api, CanSendMessage, MessageChat};
 
 use crate::{NewTubeService, Video};
 use crate::new_tube_service::NewTubeServiceError;
 
-/// Worker which periodically fetches new videos
-/// and sends them to telegram. Might be stopped by its master.
-pub struct VideoFetchWorker {
+pub type Result<T> = std::result::Result<T, VideoFetcherError>;
+
+/// Fetches new videos and sends the results to telegram.
+pub struct VideoFetcher {
     telegram_api: Api,
     chat: MessageChat,
-    receiver: Receiver<()>,
     new_tube_service: NewTubeService,
-    current_iteration: usize,
 }
 
-impl VideoFetchWorker {
+impl VideoFetcher {
     pub fn new(
         telegram_api: Api,
         chat: MessageChat,
-        receiver: Receiver<()>,
-    ) -> Result<Self, NewTubeServiceError> {
-        Ok(VideoFetchWorker {
+    ) -> Result<Self> {
+        Ok(VideoFetcher {
             telegram_api,
             chat,
-            receiver,
             new_tube_service: NewTubeService::new()?,
-            current_iteration: 600
         })
     }
 
-    pub async fn periodically_fetch_new_videos(&mut self) {
-        println!("Starting worker thread");
-        loop {
-            if self.worker_must_be_stopped() {
-                break;
-            }
+    /// Fetch new videos and send the result to the target telegram channel.
+    /// If any error occurs, try to send the problem to the channel.
+    pub async fn fetch_and_send_new_videos(&self) {
+        let res = self.try_fetch_and_send().await;
 
-            if self.it_is_time_to_fetch_videos() {
-                self.current_iteration = 0;
-                self.fetch_and_send_new_videos().await;
-            }
-
-            self.current_iteration += 1;
-            Self::sleep_500_milliseconds()
+        if let Err(e) = res {
+            self.send_error_message(e).await;
         }
     }
 
-    fn worker_must_be_stopped(&self) -> bool {
-        match self.receiver.try_recv() {
-            Ok(_) | Err(TryRecvError::Disconnected) => true,
-            Err(TryRecvError::Empty) => false
-        }
-    }
-
-    /// We wait 500ms every loop, and every 5 minutes videos shall be fetched.
-    /// 600 loops are equivalent to waiting 600 times 0.5 seconds, which is
-    /// 5 minutes in total.
-    /// This is a very dumb way of scheduling and should be changed in the future.
-    fn it_is_time_to_fetch_videos(&self) -> bool {
-        self.current_iteration == 600
-    }
-
-    async fn fetch_and_send_new_videos(&self) {
+    async fn try_fetch_and_send(&self) -> Result<()> {
         println!("Fetching new videos");
-        let new_videos = self.new_tube_service.get_new_videos_and_update_database().await.unwrap();
+        let new_videos = self.new_tube_service.get_new_videos_and_update_database().await?;
+
         match new_videos.len() {
             0 => println!("Nothing found"),
             len => {
                 println!("Found {len} new videos");
                 for v in new_videos {
-                    self.send_message_for_video(v).await
+                    self.send_message_for_video(v).await?;
                 }
             }
         }
+
+        Ok(())
     }
 
-    async fn send_message_for_video(&self, video: Video) {
-        self.telegram_api.send(self.chat.text(Self::video_to_telegram_message(video))).await.unwrap();
+    async fn send_message_for_video(&self, video: Video) -> Result<()> {
+        self.telegram_api.send(self.chat.text(Self::video_to_telegram_message(video))).await?;
+        Ok(())
     }
 
     fn video_to_telegram_message(video: Video) -> String {
@@ -92,7 +67,17 @@ impl VideoFetchWorker {
         )
     }
 
-    fn sleep_500_milliseconds() {
-        thread::sleep(Duration::from_millis(500))
+    async fn send_error_message(&self, error: VideoFetcherError) {
+        if let Err(e) = self.telegram_api.send(self.chat.text(format!("{error}"))).await {
+            print!("Failed to send error '{error}' due to other error: {e}");
+        }
     }
+}
+
+#[error(impl_from)]
+pub enum VideoFetcherError {
+    #[error(message = "Failed to retrieve new videos. {_0}")]
+    NewTubeServiceError(NewTubeServiceError),
+    #[error(message = "Failed to send telegram message")]
+    SendMessageFailed(telegram_bot::Error),
 }
