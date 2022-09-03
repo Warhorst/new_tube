@@ -25,6 +25,7 @@ mod playlist;
 mod telegram;
 mod new_tube_service;
 mod environment;
+mod youtube_dlp;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
