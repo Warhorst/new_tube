@@ -1,8 +1,8 @@
 use error_generator::error;
 
-use crate::new::database::{Database, DBError};
-use crate::new::NewTubeServiceError::PlaylistHasNoVideos;
-use crate::new::yt_dlp::{Error, Items, YTDLPCaller};
+use crate::new_tube_service::database::{Database, DBError};
+use crate::new_tube_service::NewTubeServiceError::PlaylistHasNoVideos;
+use crate::new_tube_service::yt_dlp::{Error, Items, YTDLPCaller};
 
 pub mod database;
 pub mod yt_dlp;

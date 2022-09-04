@@ -7,14 +7,14 @@ use error_generator::error;
 
 use Command::*;
 
-use crate::new::database::Database;
-use crate::new::NewTubeService;
-use crate::new::yt_dlp::{Item, Items};
+use crate::new_tube_service::database::Database;
+use crate::new_tube_service::NewTubeService;
+use crate::new_tube_service::yt_dlp::{Item, Items};
 use crate::telegram::bot::Bot;
 
 mod telegram;
 mod environment;
-mod new;
+mod new_tube_service;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
@@ -111,9 +111,9 @@ struct AddAllCommand {
 #[error]
 enum NewTubeError {
     #[error(message = "{_0}", impl_from)]
-    VideoServiceError(new::NewTubeServiceError),
+    VideoServiceError(new_tube_service::NewTubeServiceError),
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
-    DatabaseCallFailed(new::database::DBError),
+    DatabaseCallFailed(new_tube_service::database::DBError),
     #[error(message = "{_0}", impl_from)]
     BotError(telegram::bot::BotError)
 }

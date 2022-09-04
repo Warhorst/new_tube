@@ -2,7 +2,7 @@ use error_generator::error;
 use telegram_bot::{Api, CanSendMessage, MessageChat};
 
 use crate::{Item, NewTubeService};
-use crate::new::NewTubeServiceError;
+use crate::new_tube_service::NewTubeServiceError;
 
 pub type Result<T> = std::result::Result<T, VideoFetcherError>;
 

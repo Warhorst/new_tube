@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use error_generator::error;
 use rusqlite::{Connection, Statement};
 
-use crate::new::yt_dlp::{Item, Items};
+use crate::new_tube_service::yt_dlp::{Item, Items};
 
 type Result<T> = std::result::Result<T, DBError>;
 
