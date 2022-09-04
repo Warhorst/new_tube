@@ -6,12 +6,15 @@ use environment::get_allowed_bot_user;
 
 use crate::{environment, new_tube_service};
 use crate::environment::get_telegram_api_key;
-use crate::telegram::background_video_fetcher::BackgroundVideoFetcher;
+use crate::tg_bot::background_video_fetcher::BackgroundVideoFetcher;
+
+pub(in crate::tg_bot) mod background_video_fetcher;
+pub(in crate::tg_bot) mod video_fetch_worker;
 
 type BotResult<T> = Result<T, BotError>;
 
 pub struct Bot {
-    video_fetch_worker: BackgroundVideoFetcher
+    video_fetch_worker: BackgroundVideoFetcher,
 }
 
 impl Bot {
@@ -43,7 +46,7 @@ impl Bot {
     fn get_text_and_message_from_update(&self, update: Update) -> Option<(String, Message)> {
         if let UpdateKind::Message(message) = update.kind {
             if let MessageKind::Text { ref data, .. } = message.kind {
-                return Some((data.clone(), message))
+                return Some((data.clone(), message));
             }
         }
 

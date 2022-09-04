@@ -7,8 +7,8 @@ use clokwerk::{Scheduler, TimeUnits};
 use error_generator::error;
 use telegram_bot::{Api, MessageChat};
 
-use crate::telegram::background_video_fetcher::BackgroundVideoFetcherError::FailedToStopBecauseWorkerNotStarted;
-use crate::telegram::video_fetch_worker::{VideoFetcher, VideoFetcherError};
+use crate::tg_bot::background_video_fetcher::BackgroundVideoFetcherError::FailedToStopBecauseWorkerNotStarted;
+use crate::tg_bot::video_fetch_worker::{VideoFetcher, VideoFetcherError};
 
 pub type Result<T> = std::result::Result<T, BackgroundVideoFetcherError>;
 

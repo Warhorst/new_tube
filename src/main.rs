@@ -6,13 +6,13 @@ use cli_table::table::{Table, Width};
 use error_generator::error;
 
 use Command::*;
+use tg_bot::Bot;
 
 use crate::new_tube_service::database::Database;
 use crate::new_tube_service::NewTubeService;
 use crate::new_tube_service::yt_dlp::{Item, Items};
-use crate::telegram::bot::Bot;
 
-mod telegram;
+mod tg_bot;
 mod environment;
 mod new_tube_service;
 
@@ -115,5 +115,5 @@ enum NewTubeError {
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
     DatabaseCallFailed(new_tube_service::database::DBError),
     #[error(message = "{_0}", impl_from)]
-    BotError(telegram::bot::BotError)
+    BotError(tg_bot::BotError)
 }
