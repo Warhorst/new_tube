@@ -4,7 +4,7 @@ use telegram_bot::{Api, Message, MessageKind, Update, UpdateKind};
 
 use environment::get_allowed_bot_user;
 
-use crate::environment;
+use crate::{environment, new};
 use crate::environment::get_telegram_api_key;
 use crate::telegram::background_video_fetcher::BackgroundVideoFetcher;
 
@@ -77,7 +77,7 @@ impl Bot {
 #[error(impl_from)]
 pub enum BotError {
     #[error(message = "Error while retrieving new videos: {_0}")]
-    RetrieveNewVideosFailed(crate::new_tube_service::NewTubeServiceError),
+    RetrieveNewVideosFailed(new::NewTubeServiceError),
     #[error(message = "Telegram API key could not be retrieved: {_0}")]
     TelegramApiKeyNotRetrieved(std::env::VarError),
     #[error(message = "Error while calling the telegram API: {_0}")]

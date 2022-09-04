@@ -2,16 +2,17 @@ use std::process::{Command, Output};
 use std::string::FromUtf8Error;
 
 use error_generator::error;
+use rusqlite::Row;
 use serde::Deserialize;
 
-type Items = Vec<Item>;
+pub type Items = Vec<Item>;
 type Result<T> = std::result::Result<T, Error>;
 
-pub struct YoutubeDLPCaller;
+pub struct YTDLPCaller;
 
-impl YoutubeDLPCaller {
+impl YTDLPCaller {
     /// Use yt-dlp to retrieve the last 3 items from the given playlist id and parse them.
-    pub fn retrieve_playlist_items(playlist_id: &str) -> Result<Items> {
+    pub fn retrieve_latest_items(playlist_id: &str) -> Result<Items> {
         let output = Self::execute_command(playlist_id)?;
         Self::parse_output_to_items(output)
     }
@@ -54,10 +55,40 @@ pub enum Error {
     CommandOutputParseFailed(FromUtf8Error)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Item {
-    pub id: String,
+    pub playlist_id: String,
+    #[serde(rename(deserialize = "id"))]
+    pub video_id: String,
     pub title: String,
     pub duration: f32,
     pub uploader: String
+}
+
+impl Item {
+    pub fn link(&self) -> String {
+        format!("https://www.youtube.com/watch?v={}", self.video_id)
+    }
+
+    pub fn formatted_duration(&self) -> String {
+        let secs = self.duration as usize;
+        let seconds = secs % 60;
+        let minutes = (secs / 60) % 60;
+        let hours = (secs / 60) / 60;
+        format!("{hours}:{minutes}:{seconds}")
+    }
+}
+
+impl TryFrom<&Row<'_>> for Item {
+    type Error = rusqlite::Error;
+
+    fn try_from(row: &Row) -> std::result::Result<Self, Self::Error> {
+        Ok(Item {
+            playlist_id: row.get(0)?,
+            video_id: row.get(1)?,
+            title: row.get(2)?,
+            duration: row.get(3)?,
+            uploader: row.get(4)?,
+        })
+    }
 }

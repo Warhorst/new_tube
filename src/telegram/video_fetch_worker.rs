@@ -1,8 +1,8 @@
 use error_generator::error;
 use telegram_bot::{Api, CanSendMessage, MessageChat};
 
-use crate::{NewTubeService, Video};
-use crate::new_tube_service::NewTubeServiceError;
+use crate::{Item, NewTubeService};
+use crate::new::NewTubeServiceError;
 
 pub type Result<T> = std::result::Result<T, VideoFetcherError>;
 
@@ -37,14 +37,14 @@ impl VideoFetcher {
 
     async fn try_fetch_and_send(&self) -> Result<()> {
         println!("Fetching new videos");
-        let new_videos = self.new_tube_service.get_new_videos_and_update_database().await?;
+        let new_videos = self.new_tube_service.get_new_videos_and_update_database()?;
 
         match new_videos.len() {
             0 => println!("Nothing found"),
             len => {
                 println!("Found {len} new videos");
-                for v in new_videos {
-                    self.send_message_for_video(v).await?;
+                for item in new_videos {
+                    self.send_message_for_item(item).await?;
                 }
             }
         }
@@ -52,18 +52,18 @@ impl VideoFetcher {
         Ok(())
     }
 
-    async fn send_message_for_video(&self, video: Video) -> Result<()> {
-        self.telegram_api.send(self.chat.text(Self::video_to_telegram_message(video))).await?;
+    async fn send_message_for_item(&self, item: Item) -> Result<()> {
+        self.telegram_api.send(self.chat.text(Self::item_to_telegram_message(item))).await?;
         Ok(())
     }
 
-    fn video_to_telegram_message(video: Video) -> String {
+    fn item_to_telegram_message(item: Item) -> String {
         format!(
             "{}\n{}\n{}\n{}",
-            video.channel_name,
-            video.name,
-            video.formatted_duration(),
-            video.link()
+            item.uploader,
+            item.title,
+            item.formatted_duration(),
+            item.link()
         )
     }
 
