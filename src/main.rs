@@ -25,7 +25,7 @@ fn main() -> Result<()> {
         New => new(),
         Last => last(),
         PlaylistsJSON => playlists_json(),
-        Command::Bot => Ok(Bot::run()?)
+        Command::Bot(bot_command) => Ok(Bot::run(bot_command.use_default_channel)?)
     }
 }
 
@@ -91,8 +91,8 @@ enum Command {
     Last,
     /// Return all saved playlist IDs as JSON
     PlaylistsJSON,
-    /// Run the telegram
-    Bot
+    /// Run the telegram bot
+    Bot(BotCommand)
 }
 
 #[derive(Parser)]
@@ -105,6 +105,13 @@ struct AddCommand {
 struct AddAllCommand {
     /// Path to a JSON containing a list of playlist ids to add
     playlists_json_path: PathBuf
+}
+
+#[derive(Parser)]
+struct BotCommand {
+    /// if set, use the default telegram channel directly
+    #[clap(long)]
+    use_default_channel: bool
 }
 
 #[error]
