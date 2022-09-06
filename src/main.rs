@@ -6,27 +6,26 @@ use cli_table::table::{Table, Width};
 use error_generator::error;
 
 use Command::*;
-use tg_bot::Bot;
 
 use crate::new_tube_service::database::Database;
 use crate::new_tube_service::NewTubeService;
 use crate::new_tube_service::yt_dlp::{Item, Items};
+use crate::telegram_bot::Bot;
 
-mod tg_bot;
 mod environment;
 mod new_tube_service;
+mod telegram_bot;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     match Command::parse() {
         Add(add_command) => add(&add_command.playlist_id),
         AddAll(add_all_command) => add_all(add_all_command.playlists_json_path),
         New => new(),
         Last => last(),
         PlaylistsJSON => playlists_json(),
-        Bot => Ok(Bot::new()?.run().await?)
+        Command::Bot => Ok(Bot::run()?)
     }
 }
 
@@ -115,5 +114,5 @@ enum NewTubeError {
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
     DatabaseCallFailed(new_tube_service::database::DBError),
     #[error(message = "{_0}", impl_from)]
-    BotError(tg_bot::BotError)
+    BotError(telegram_bot::BotError)
 }
