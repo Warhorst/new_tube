@@ -57,7 +57,7 @@ impl Database {
         self.connection.execute("\
             INSERT OR REPLACE INTO PlaylistItems (playlist_id, video_id, title, duration, uploader)
             VALUES (?1, ?2, ?3, ?4, ?5);
-        ", &[&item.playlist_id, &item.video_id, &item.title, &format!("{}", item.duration), &item.uploader])?;
+        ", &[&item.playlist_id, &item.video_id, &item.title, &format!("{}", item.duration.unwrap_or_default()), &item.uploader])?;
 
         Ok(())
     }

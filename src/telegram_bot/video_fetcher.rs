@@ -19,13 +19,31 @@ impl VideoFetcher {
 
     pub fn fetch_and_send_new_videos(&self, chat_id: i64) {
         println!("Fetching new videos");
-        let new_videos = match self.new_tube_service.get_new_videos_and_update_database() {
-            Ok(vs) => vs,
-            Err(error) => {
-                println!("{error}");
-                return
+
+        let last_items = match self.new_tube_service.get_last_items() {
+            Ok(items) => items,
+            Err(e) => {
+                println!("Failed get last items: Reason: {e}");
+                return;
             }
         };
+
+        let mut new_videos = vec![];
+
+        for item in last_items {
+            match self.new_tube_service.get_new_videos(&item) {
+                Ok(new) => {
+                    match self.new_tube_service.save_new_videos(&new) {
+                        Ok(()) => new_videos.extend(new.into_iter()),
+                        Err(e) => println!("Failed to save new videos. Reason: {e}")
+                    }
+
+                },
+                Err(e) => {
+                    println!("Failed to fetch videos for channel {}. Reason: {}", item.uploader, e)
+                }
+            }
+        }
 
         match new_videos.len() {
             0 => println!("Nothing found"),

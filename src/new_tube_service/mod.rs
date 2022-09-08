@@ -1,5 +1,6 @@
 use error_generator::error;
 
+use crate::Item;
 use crate::new_tube_service::database::{Database, DBError};
 use crate::new_tube_service::NewTubeServiceError::PlaylistHasNoVideos;
 use crate::new_tube_service::yt_dlp::{Error, Items, YTDLPCaller};
@@ -41,9 +42,20 @@ impl NewTubeService {
                 .take_while(|item| item.video_id != last.video_id));
         }
 
-        self.add_new_items_to_database(&new_items)?;
+        self.save_new_videos(&new_items)?;
 
         Ok(new_items)
+    }
+
+    pub fn get_last_items(&self) -> Result<Items> {
+        Ok(self.database.get_items()?.into_iter().collect())
+    }
+
+    pub fn get_new_videos(&self, last: &Item) -> Result<Vec<Item>> {
+        Ok(YTDLPCaller::retrieve_latest_items(&last.playlist_id)?
+            .into_iter()
+            .take_while(|item| item.video_id != last.video_id)
+            .collect())
     }
 
     /// Add all new items to the database.
@@ -55,7 +67,7 @@ impl NewTubeService {
     ///
     /// The items have an upload date, but its precision is 'day', so this is the best solution if a
     /// channel uploads multiple times a day.
-    fn add_new_items_to_database(&self, new_items: &Items) -> Result<()> {
+    pub fn save_new_videos(&self, new_items: &Items) -> Result<()> {
         for item in new_items.iter().rev() {
             self.database.add_item(&item)?
         }

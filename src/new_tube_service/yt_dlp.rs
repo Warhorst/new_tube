@@ -61,7 +61,7 @@ pub struct Item {
     #[serde(rename(deserialize = "id"))]
     pub video_id: String,
     pub title: String,
-    pub duration: f32,
+    pub duration: Option<f32>,
     pub uploader: String
 }
 
@@ -71,7 +71,7 @@ impl Item {
     }
 
     pub fn formatted_duration(&self) -> String {
-        let secs = self.duration as usize;
+        let secs = self.duration.unwrap_or_default() as usize;
         let seconds = secs % 60;
         let minutes = (secs / 60) % 60;
         let hours = (secs / 60) / 60;
@@ -87,7 +87,7 @@ impl TryFrom<&Row<'_>> for Item {
             playlist_id: row.get(0)?,
             video_id: row.get(1)?,
             title: row.get(2)?,
-            duration: row.get(3)?,
+            duration: Some(row.get(3)?),
             uploader: row.get(4)?,
         })
     }
