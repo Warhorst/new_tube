@@ -17,6 +17,7 @@ impl YTDLPCaller {
         Self::parse_output_to_items(output)
     }
 
+    // Example: yt-dlp https://www.youtube.com/watch?list=<PLAYLIST_ID> --skip-download --quiet --playlist-start 1 --playlist-end 3 --print-json --flat-playlist
     fn execute_command(playlist_id: &str) -> Result<Output> {
         // TODO: There is an async process library, but it only works blocking on windows. Could be faster if run
         //  on a penguin machine.
@@ -62,6 +63,7 @@ pub struct Item {
     pub video_id: String,
     pub title: String,
     pub duration: Option<f32>,
+    #[serde(rename(deserialize = "channel"))]
     pub uploader: String
 }
 
