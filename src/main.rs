@@ -25,7 +25,9 @@ fn main() -> Result<()> {
         New => new(),
         Last => last(),
         PlaylistsJSON => playlists_json(),
-        Command::Bot(bot_command) => Ok(Bot::run(bot_command.use_default_channel)?)
+        Command::Bot(bot_command) => Ok(Bot::run(bot_command.use_default_channel)?),
+        Replace(replace_command) => replace(&replace_command.old_playlist_id, &replace_command.new_playlist_id),
+        Delete(delete_command) => delete(&delete_command.playlist_id)
     }
 }
 
@@ -42,6 +44,18 @@ fn add_all(playlists_json_path: PathBuf) -> Result<()> {
         add(&id)?
     }
 
+    Ok(())
+}
+
+fn replace(old_id: &str, new_id: &str) -> Result<()> {
+    let service = NewTubeService::new()?;
+    service.replace(old_id, new_id)?;
+    Ok(())
+}
+
+fn delete(id: &str) -> Result<()> {
+    let service = NewTubeService::new()?;
+    service.delete(id)?;
     Ok(())
 }
 
@@ -70,12 +84,13 @@ fn playlists_json() -> Result<()> {
 fn print_table(items: Items) {
     Table::new(|item: Item| [
         item.uploader.clone(),
+        item.playlist_id.clone(),
         item.title.clone(),
         item.link(),
         item.formatted_duration(),
     ])
-        .header(["Channel", "Video", "Link", "Duration"])
-        .column_widths([Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
+        .header(["Channel", "Playlist ID", "Video", "Link", "Duration"])
+        .column_widths([Width::Dynamic, Width::Dynamic, Width::Max(50), Width::Dynamic, Width::Dynamic])
         .print(items);
 }
 
@@ -85,6 +100,10 @@ enum Command {
     Add(AddCommand),
     /// Add a JSON list of playlists
     AddAll(AddAllCommand),
+    /// Replace an existing playlist id with a new one
+    Replace(ReplaceCommand),
+    /// Delete an existing playlist id
+    Delete(DeleteCommand),
     /// Show the new videos of today
     New,
     /// Show the last video of every playlist. This does not call the Youtube API
@@ -92,26 +111,40 @@ enum Command {
     /// Return all saved playlist IDs as JSON
     PlaylistsJSON,
     /// Run the telegram bot
-    Bot(BotCommand)
+    Bot(BotCommand),
 }
 
 #[derive(Parser)]
 struct AddCommand {
-    /// The id of a "All Videos" playlist
+    /// The id of an "All Videos" playlist
     playlist_id: String,
 }
 
 #[derive(Parser)]
 struct AddAllCommand {
     /// Path to a JSON containing a list of playlist ids to add
-    playlists_json_path: PathBuf
+    playlists_json_path: PathBuf,
+}
+
+#[derive(Parser)]
+struct ReplaceCommand {
+    /// The old id to be replaced
+    old_playlist_id: String,
+    /// The new id to add to new_tube
+    new_playlist_id: String,
+}
+
+#[derive(Parser)]
+struct DeleteCommand {
+    /// The playlist id of the playlist id to be deleted
+    playlist_id: String,
 }
 
 #[derive(Parser)]
 struct BotCommand {
     /// if set, use the default telegram channel directly
     #[clap(long)]
-    use_default_channel: bool
+    use_default_channel: bool,
 }
 
 #[error]
@@ -121,5 +154,5 @@ enum NewTubeError {
     #[error(message = "Database call failed. Error: {_0}", impl_from)]
     DatabaseCallFailed(new_tube_service::database::DBError),
     #[error(message = "{_0}", impl_from)]
-    BotError(telegram_bot::BotError)
+    BotError(telegram_bot::BotError),
 }

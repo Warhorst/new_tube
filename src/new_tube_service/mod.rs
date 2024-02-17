@@ -47,6 +47,15 @@ impl NewTubeService {
         Ok(new_items)
     }
 
+    pub fn replace(&self, old_id: &str, new_id: &str) -> Result<()> {
+        self.delete(old_id)?;
+        self.add_playlist(new_id)
+    }
+
+    pub fn delete(&self, id: &str) -> Result<()> {
+        Ok(self.database.delete(id)?)
+    }
+
     pub fn get_last_items(&self) -> Result<Items> {
         Ok(self.database.get_items()?.into_iter().collect())
     }

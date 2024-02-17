@@ -61,6 +61,11 @@ impl Database {
 
         Ok(())
     }
+
+    pub fn delete(&self, id: &str) -> Result<()> {
+        self.connection.execute("DELETE FROM PlaylistItems WHERE playlist_id = ?1", &[id])?;
+        Ok(())
+    }
 }
 
 #[error(message = "Error while connecting to the database or while executing queries: {self.0}", impl_from)]
