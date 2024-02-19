@@ -128,7 +128,8 @@ enum Command {
     /// Return all saved playlist IDs as JSON
     PlaylistsJSON,
     /// Run the telegram bot. Requires NEW_TUBE_TELEGRAM_API_KEY to be set to the
-    /// telegram API key. Updates will be sent to the channel defined by NEW_TUBE_DEFAULT_TELEGRAM_CHANNEL
+    /// telegram API key. Updates will be sent to the channel defined by NEW_TUBE_DEFAULT_TELEGRAM_CHANNEL.
+    /// Only the user defined in NEW_TUBE_ALLOWED_BOT_USER can use the bot.
     Bot
 }
 

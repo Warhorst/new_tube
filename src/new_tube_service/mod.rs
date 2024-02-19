@@ -8,7 +8,7 @@ use crate::new_tube_service::yt_dlp::{Error, Items, YTDLPCaller};
 pub mod database;
 pub mod yt_dlp;
 
-type Result<T> = std::result::Result<T, NewTubeServiceError>;
+pub type Result<T> = std::result::Result<T, NewTubeServiceError>;
 
 pub struct NewTubeService {
     database: Database,
