@@ -9,6 +9,7 @@ use error_generator::error;
 use ron::error::SpannedError;
 
 use crate::config::Config;
+use crate::dump::{dump_playlist_ids, load_playlists_dump, DumpError};
 use crate::new_tube_service::database::Database;
 use crate::new_tube_service::NewTubeService;
 use crate::playlist_item::PlaylistItem;
@@ -19,6 +20,7 @@ mod new_tube_service;
 mod telegram_bot;
 mod config;
 mod playlist_item;
+mod dump;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
@@ -30,10 +32,11 @@ fn main() -> Result<()> {
         Command::AddAll(add_all_command) => add_all(add_all_command.playlists_json_path),
         Command::New => new(),
         Command::Last => last(),
-        Command::PlaylistsJSON => playlists_json(),
+        Command::DumpPlaylistIds => Ok(dump_playlist_ids()?),
+        Command::LoadPlaylistIdsDump => Ok(load_playlist_ids_dump()?),
         Command::Bot => Ok(Bot::run(config)?),
         Command::Replace(replace_command) => replace(&replace_command.old_playlist_id, &replace_command.new_playlist_id),
-        Command::Delete(delete_command) => delete(&delete_command.playlist_id)
+        Command::Delete(delete_command) => delete(&delete_command.playlist_id),
     }
 }
 
@@ -89,11 +92,16 @@ fn last() -> Result<()> {
     Ok(())
 }
 
-fn playlists_json() -> Result<()> {
-    let database = Database::open()?;
-    let playlist_ids = database.get_playlist_ids()?;
-    let playlist_ids_json = serde_json::to_string(&playlist_ids).unwrap();
-    println!("{playlist_ids_json}");
+fn load_playlist_ids_dump() -> Result<()> {
+    let playlist_ids = load_playlists_dump()?;
+    let len = playlist_ids.len();
+    let video_service = NewTubeService::new()?;
+
+    for (index, id) in playlist_ids.into_iter().enumerate() {
+        println!("Adding id {} of {}", index + 1, len);
+        video_service.add_playlist(&id)?
+    }
+
     Ok(())
 }
 
@@ -122,10 +130,12 @@ enum Command {
     Delete(DeleteCommand),
     /// Show the new videos of today
     New,
-    /// Show the last video of every playlist. This does not call the Youtube API
+    /// Show the last video of every playlist in the database.
     Last,
-    /// Return all saved playlist IDs as JSON
-    PlaylistsJSON,
+    /// Dump the playlist ids to a json file
+    DumpPlaylistIds,
+    /// Load the playlist ids from a json file
+    LoadPlaylistIdsDump,
     /// Run the telegram bot. Requires NEW_TUBE_TELEGRAM_API_KEY to be set to the
     /// telegram API key. Updates will be sent to the channel defined by NEW_TUBE_DEFAULT_TELEGRAM_CHANNEL.
     /// Only the user defined in NEW_TUBE_ALLOWED_BOT_USER can use the bot.
@@ -170,4 +180,6 @@ enum NewTubeError {
     DatabaseCallFailed(new_tube_service::database::DBError),
     #[error(message = "{_0}", impl_from)]
     BotError(telegram_bot::BotError),
+    #[error(message = "{_0}", impl_from)]
+    DumpingError(DumpError)
 }
