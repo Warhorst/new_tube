@@ -59,7 +59,7 @@ impl Database {
     pub fn add_item(&self, item: &PlaylistItem) -> Result<()> {
         self.connection.execute("\
             INSERT OR REPLACE INTO PlaylistItems (playlist_id, video_id, title, duration, uploader, previous_video_id)
-            VALUES (?1, ?2, ?3, ?4, ?5);
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6);
         ", (
             &item.playlist_id,
             &item.video_id,
