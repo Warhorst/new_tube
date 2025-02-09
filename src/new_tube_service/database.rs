@@ -1,9 +1,8 @@
 use std::path::PathBuf;
 
+use crate::playlist_item::PlaylistItem;
 use error_generator::error;
-use rusqlite::{Connection, Statement};
-
-use crate::new_tube_service::yt_dlp::{Item, Items};
+use rusqlite::Connection;
 
 type Result<T> = std::result::Result<T, DBError>;
 
@@ -21,7 +20,8 @@ impl Database {
             video_id TEXT NOT NULL,
             title TEXT NOT NULL,
             duration REAL NOT NULL,
-            uploader TEXT NOT NULL
+            uploader TEXT NOT NULL,
+            previous_video_id NULL
         );", [])?;
 
         Ok(Database { connection })
@@ -34,30 +34,40 @@ impl Database {
         path
     }
 
-    pub fn get_items(&self) -> Result<Items> {
-        let mut statement = self.create_select_all_statement()?;
+    pub fn query_all_items(&self) -> Result<Vec<PlaylistItem>> {
+        let mut statement = self.connection.prepare("\
+            SELECT * FROM PlaylistItems;
+        ")?;
 
         let result = statement.query_map([], |row| {
-            Item::try_from(row)
+            Ok(PlaylistItem {
+                playlist_id: row.get(0)?,
+                video_id: row.get(1)?,
+                title: row.get(2)?,
+                duration: row.get(3)?,
+                uploader: row.get(4)?,
+                previous_video_id: row.get(5)?
+            })
         })?;
         Ok(result.map(|r| r.unwrap()).collect())
     }
 
     pub fn get_playlist_ids(&self) -> Result<Vec<String>> {
-        Ok(self.get_items()?.into_iter().map(|item| item.playlist_id).collect())
+        Ok(self.query_all_items()?.into_iter().map(|item| item.playlist_id).collect())
     }
 
-    fn create_select_all_statement(&self) -> Result<Statement> {
-        Ok(self.connection.prepare("\
-            SELECT * FROM PlaylistItems;
-        ")?)
-    }
-
-    pub fn add_item(&self, item: &Item) -> Result<()> {
+    pub fn add_item(&self, item: &PlaylistItem) -> Result<()> {
         self.connection.execute("\
-            INSERT OR REPLACE INTO PlaylistItems (playlist_id, video_id, title, duration, uploader)
+            INSERT OR REPLACE INTO PlaylistItems (playlist_id, video_id, title, duration, uploader, previous_video_id)
             VALUES (?1, ?2, ?3, ?4, ?5);
-        ", &[&item.playlist_id, &item.video_id, &item.title, &format!("{}", item.duration.unwrap_or_default()), &item.uploader])?;
+        ", (
+            &item.playlist_id,
+            &item.video_id,
+            &item.title,
+            &format!("{}", item.duration),
+            &item.uploader,
+            &item.previous_video_id
+        ))?;
 
         Ok(())
     }

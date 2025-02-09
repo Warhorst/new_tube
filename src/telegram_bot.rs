@@ -7,11 +7,8 @@ use frankenstein::{AllowedUpdate, Api, GetUpdatesParams, Message, SendMessagePar
 
 use crate::config::Config;
 use crate::environment::{get_allowed_bot_user, get_default_telegram_channel_id, get_telegram_api_key};
-use crate::new_tube_service::NewTubeServiceError;
-use crate::new_tube_service::yt_dlp::Item;
-use crate::telegram_bot::video_fetcher::VideoFetcher;
-
-mod video_fetcher;
+use crate::new_tube_service::{NewTubeService, NewTubeServiceError};
+use crate::playlist_item::PlaylistItem;
 
 pub struct Bot;
 
@@ -20,10 +17,10 @@ impl Bot {
         let mut scheduler = Scheduler::new();
         let api = Api::new(&get_telegram_api_key());
         let chat_id = get_default_telegram_channel_id();
-        let fetcher = VideoFetcher::new()?;
+        let new_tube_service = NewTubeService::new()?;
 
         scheduler.every(10.seconds()).run(Self::read_updates(api.clone(), chat_id));
-        scheduler.every(config.bot_fetch_schedule.minutes()).run(Self::fetch_videos(api.clone(), chat_id, fetcher));
+        scheduler.every(config.bot_fetch_schedule.minutes()).run(Self::fetch_videos(api.clone(), chat_id, new_tube_service));
         Self::send_message(&api, chat_id, "Started");
         println!("Bot started");
 
@@ -33,9 +30,9 @@ impl Bot {
         }
     }
 
-    fn fetch_videos(api: Api, chat_id: i64, video_fetcher: VideoFetcher) -> impl FnMut() {
+    fn fetch_videos(api: Api, chat_id: i64, new_tube_service: NewTubeService) -> impl FnMut() {
         move || {
-            match video_fetcher.fetch_new_videos() {
+            match new_tube_service.get_new_videos_and_update_database() {
                 Ok(new_videos) => new_videos.into_iter()
                     .map(Self::item_to_telegram_message)
                     .for_each(|m| Self::send_message(&api, chat_id, m)),
@@ -116,7 +113,7 @@ impl Bot {
         }
     }
 
-    fn item_to_telegram_message(item: Item) -> String {
+    fn item_to_telegram_message(item: PlaylistItem) -> String {
         format!(
             "{}\n{}\n{}\n{}",
             item.uploader,

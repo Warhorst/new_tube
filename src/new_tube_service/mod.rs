@@ -1,9 +1,8 @@
 use error_generator::error;
 
-use crate::Item;
-use crate::new_tube_service::database::{Database, DBError};
-use crate::new_tube_service::NewTubeServiceError::PlaylistHasNoVideos;
-use crate::new_tube_service::yt_dlp::{Error, Items, YTDLPCaller};
+use crate::new_tube_service::database::{DBError, Database};
+use crate::new_tube_service::yt_dlp::{retrieve_latest_items, Error, YTDLPResponse};
+use crate::playlist_item::PlaylistItem;
 
 pub mod database;
 pub mod yt_dlp;
@@ -22,29 +21,68 @@ impl NewTubeService {
     }
 
     pub fn add_playlist(&self, id: &str) -> Result<()> {
-        let latest_items = YTDLPCaller::retrieve_latest_items(id)?;
-        let latest_item = match latest_items.get(0) {
-            Some(item) => item,
-            None => return Err(PlaylistHasNoVideos)
+        let response = retrieve_latest_items(id)?;
+        let latest = response.latest_item;
+        let previous = response.previous_item;
+
+        let item = PlaylistItem {
+            playlist_id: latest.playlist_id,
+            video_id: latest.id,
+            title: latest.title,
+            duration: latest.duration.unwrap_or_default(),
+            uploader: latest.channel,
+            previous_video_id: previous.id,
         };
 
-        self.database.add_item(latest_item)?;
+        self.database.add_item(&item)?;
         Ok(())
     }
 
-    pub fn get_new_videos_and_update_database(&self) -> Result<Items> {
-        let last_items = self.database.get_items()?;
-        let mut new_items = vec![];
+    pub fn get_new_videos_and_update_database(&self) -> Result<Vec<PlaylistItem>> {
+        let last_items = self.database.query_all_items()?;
+        let mut new_videos = vec![];
 
         for last in last_items {
-            new_items.extend(YTDLPCaller::retrieve_latest_items(&last.playlist_id)?
-                .into_iter()
-                .take_while(|item| item.video_id != last.video_id));
+            let new = self.get_new_video(&last)?;
+
+            match new {
+                // A new video which must be saved and returned to the user
+                NewVideo::ReallyNew(video) => {
+                    self.database.add_item(&video)?;
+                    new_videos.push(video);
+                }
+                // A video which replaces a now removed one.
+                // This needs only to be saved
+                NewVideo::OldVideoNowLatest(video) => {
+                    self.database.add_item(&video)?;
+                }
+                // Nothing new, so nothing to do here
+                NewVideo::SameAsBefore => {}
+            }
         }
 
-        self.save_new_videos(&new_items)?;
+        Ok(new_videos)
 
-        Ok(new_items)
+    }
+
+    fn get_new_video(&self, last: &PlaylistItem) -> Result<NewVideo> {
+        let YTDLPResponse {latest_item, previous_item} = retrieve_latest_items(&last.playlist_id)?;
+        let latest = PlaylistItem::new(latest_item, previous_item.id.clone());
+
+        if latest.video_id == last.video_id {
+            // The latest video did not change, so no new video here
+            Ok(NewVideo::SameAsBefore)
+        } else if latest.video_id == last.previous_video_id {
+            // The latest video of the playlist is now the previous latest from the database.
+            // This means the current latest video stored in the database was removed from the
+            // playlist for any reason. In this case, just return what yt_dlp currently returned as
+            // the latest one, as this will overwrite the now invalid entry in the db.
+            Ok(NewVideo::OldVideoNowLatest(latest))
+        } else {
+            // The video is not the same as the current one and also not a previous one.
+            // It is really new
+            Ok(NewVideo::ReallyNew(latest))
+        }
     }
 
     pub fn replace(&self, old_id: &str, new_id: &str) -> Result<()> {
@@ -55,34 +93,17 @@ impl NewTubeService {
     pub fn delete(&self, id: &str) -> Result<()> {
         Ok(self.database.delete(id)?)
     }
+}
 
-    pub fn get_last_items(&self) -> Result<Items> {
-        Ok(self.database.get_items()?.into_iter().collect())
-    }
-
-    pub fn get_new_videos(&self, last: &Item) -> Result<Vec<Item>> {
-        Ok(YTDLPCaller::retrieve_latest_items(&last.playlist_id)?
-            .into_iter()
-            .take_while(|item| item.video_id != last.video_id)
-            .collect())
-    }
-
-    /// Add all new items to the database.
-    ///
-    /// Items from yt_dlp are already ordered. This means newer items are at the top
-    /// while new items are at the bottom of the list. Therefore, when adding all items to the database,
-    /// the list gets reversed, so the older items are added first. This prevents the database from holding
-    /// the older items rather than the new ones.
-    ///
-    /// The items have an upload date, but its precision is 'day', so this is the best solution if a
-    /// channel uploads multiple times a day.
-    pub fn save_new_videos(&self, new_items: &Items) -> Result<()> {
-        for item in new_items.iter().rev() {
-            self.database.add_item(&item)?
-        }
-
-        Ok(())
-    }
+/// The different states a "new video" returned by the service can be in
+pub enum NewVideo {
+    /// The video really is new and should be broadcast to the user
+    ReallyNew(PlaylistItem),
+    /// A video was removed from a playlist, leaving this video as the new latest one.
+    /// This should not be broadcast to the user, as they already know it
+    OldVideoNowLatest(PlaylistItem),
+    /// No new video. The service returned the same video that is already stored
+    SameAsBefore
 }
 
 #[error]
@@ -91,6 +112,4 @@ pub enum NewTubeServiceError {
     DatabaseAccessFailed(DBError),
     #[error(message = "{_0}", impl_from)]
     YTDLPError(Error),
-    #[error(message = "The playlist for the given id has no videos.")]
-    PlaylistHasNoVideos,
 }

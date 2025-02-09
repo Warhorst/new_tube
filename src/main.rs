@@ -1,25 +1,24 @@
-use std::{env, io};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::{env, io};
 
 use clap::Parser;
 use cli_table::table::{Table, Width};
 use error_generator::error;
 use ron::error::SpannedError;
 
-use Command::*;
-
 use crate::config::Config;
 use crate::new_tube_service::database::Database;
 use crate::new_tube_service::NewTubeService;
-use crate::new_tube_service::yt_dlp::{Item, Items};
+use crate::playlist_item::PlaylistItem;
 use crate::telegram_bot::Bot;
 
 mod environment;
 mod new_tube_service;
 mod telegram_bot;
 mod config;
+mod playlist_item;
 
 type Result<T> = std::result::Result<T, NewTubeError>;
 
@@ -27,14 +26,14 @@ fn main() -> Result<()> {
     let config = load_config()?;
 
     match Command::parse() {
-        Add(add_command) => add(&add_command.playlist_id),
-        AddAll(add_all_command) => add_all(add_all_command.playlists_json_path),
-        New => new(),
-        Last => last(),
-        PlaylistsJSON => playlists_json(),
+        Command::Add(add_command) => add(&add_command.playlist_id),
+        Command::AddAll(add_all_command) => add_all(add_all_command.playlists_json_path),
+        Command::New => new(),
+        Command::Last => last(),
+        Command::PlaylistsJSON => playlists_json(),
         Command::Bot => Ok(Bot::run(config)?),
-        Replace(replace_command) => replace(&replace_command.old_playlist_id, &replace_command.new_playlist_id),
-        Delete(delete_command) => delete(&delete_command.playlist_id)
+        Command::Replace(replace_command) => replace(&replace_command.old_playlist_id, &replace_command.new_playlist_id),
+        Command::Delete(delete_command) => delete(&delete_command.playlist_id)
     }
 }
 
@@ -77,15 +76,15 @@ fn delete(id: &str) -> Result<()> {
 }
 
 fn new() -> Result<()> {
-    let video_service = NewTubeService::new()?;
-    let new_items = video_service.get_new_videos_and_update_database()?;
+    let service = NewTubeService::new()?;
+    let new_items = service.get_new_videos_and_update_database()?;
     print_table(new_items);
     Ok(())
 }
 
 fn last() -> Result<()> {
     let database = Database::open()?;
-    let items = database.get_items()?;
+    let items = database.query_all_items()?;
     print_table(items);
     Ok(())
 }
@@ -98,8 +97,8 @@ fn playlists_json() -> Result<()> {
     Ok(())
 }
 
-fn print_table(items: Items) {
-    Table::new(|item: Item| [
+fn print_table(items: Vec<PlaylistItem>) {
+    Table::new(|item: PlaylistItem| [
         item.uploader.clone(),
         item.playlist_id.clone(),
         item.title.clone(),
